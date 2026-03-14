@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fin &amp; Fury</title>
+    <link rel="stylesheet" href="fin_n_fury.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <canvas id="menuCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- How to Play modal -->
+    <div id="howToPlayModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-box">
+            <h2 class="modal-title">HOW TO PLAY</h2>
+            <ul class="modal-list">
+                <li><span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> Move Fin</li>
+                <li><span class="key">SPACE</span> Shoot pearl (requires pearl power-up)</li>
+                <li><span class="key">EAT</span> smaller fish to grow bigger</li>
+                <li><span class="key">AVOID</span> larger fish &amp; Fury's attacks</li>
+                <li><span class="key">COLLECT</span> pearls from clams to gain shooting ability</li>
+                <li><span class="key">CLEAR</span> all fish in a stage to advance</li>
+            </ul>
+            <button class="modal-close-btn" id="closeHowToPlay">GOT IT!</button>
+        </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settingsModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-box">
+            <h2 class="modal-title">SETTINGS</h2>
+            <div class="settings-row">
+                <label>Music Volume</label>
+                <input type="range" id="musicVol" min="0" max="100" value="70">
+                <span id="musicVolVal">70%</span>
+            </div>
+            <div class="settings-row">
+                <label>SFX Volume</label>
+                <input type="range" id="sfxVol" min="0" max="100" value="90">
+                <span id="sfxVolVal">90%</span>
+            </div>
+            <div class="settings-row">
+                <label>Fullscreen</label>
+                <button class="toggle-btn" id="fullscreenToggle">OFF</button>
+            </div>
+            <button class="modal-close-btn" id="closeSettings">SAVE &amp; CLOSE</button>
+        </div>
+    </div>
+
+    <script src="fin_n_fury.js"></script>
+</body>
+</html>
