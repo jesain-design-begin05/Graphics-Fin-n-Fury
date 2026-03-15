@@ -315,9 +315,9 @@ class MenuSystem {
     _drawFloatingPanel(ctx, W, H, e) {
         // Panel intrinsic proportions from reference: ~820 × 370
         // Make it responsive: fit within 88% of viewport
-        const maxW = Math.min(W * 1.0, 970);
-        const maxH = Math.min(H * 0.85, 630);
-        const aspect = 970 / 630;
+        const maxW = Math.min(W * 0.82, 900);
+        const maxH = Math.min(H * 0.82, 680);
+        const aspect = 900 / 640;
         let pW, pH;
         if (maxW / aspect <= maxH) { pW = maxW; pH = maxW / aspect; }
         else                        { pH = maxH; pW = maxH * aspect; }
