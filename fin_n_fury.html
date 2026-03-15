@@ -10,7 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Menu canvas — full-screen animated opening -->
     <canvas id="menuCanvas"></canvas>
+
+    <!-- Game canvas — shown after PLAY is pressed -->
     <canvas id="gameCanvas"></canvas>
 
     <!-- How to Play modal -->
@@ -19,11 +22,12 @@
             <h2 class="modal-title">HOW TO PLAY</h2>
             <ul class="modal-list">
                 <li><span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> Move Fin</li>
-                <li><span class="key">SPACE</span> Shoot pearl (requires pearl power-up)</li>
+                <li><span class="key">SPACE</span> Shoot pearl at Fury (requires pearl power-up)</li>
                 <li><span class="key">EAT</span> smaller fish to grow bigger</li>
-                <li><span class="key">AVOID</span> larger fish &amp; Fury's attacks</li>
-                <li><span class="key">COLLECT</span> pearls from clams to gain shooting ability</li>
-                <li><span class="key">CLEAR</span> all fish in a stage to advance</li>
+                <li><span class="key">AVOID</span> larger fish &amp; Fury's toxic attacks</li>
+                <li><span class="key">COLLECT</span> pearls from eating fish — random 12% drop</li>
+                <li><span class="key">CLEAR</span> all fish per stage to advance</li>
+                <li><span class="key">BOSS</span> Fury appears every 5 stages — shoot 8 pearls!</li>
             </ul>
             <button class="modal-close-btn" id="closeHowToPlay">GOT IT!</button>
         </div>
@@ -51,6 +55,11 @@
         </div>
     </div>
 
+    <!--
+        LOAD ORDER: game.js MUST come before fin_n_fury.js
+        game.js defines the Game class (used by MenuSystem._startGame)
+    -->
+    <script src="game.js"></script>
     <script src="fin_n_fury.js"></script>
 </body>
 </html>
