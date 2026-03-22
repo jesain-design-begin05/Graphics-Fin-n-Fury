@@ -8,6 +8,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        /* Ensure body and canvases never show raw black */
+        html, body {
+            margin: 0; padding: 0; overflow: hidden;
+            background: #001428;   /* deep ocean fallback */
+            width: 100%; height: 100%;
+        }
+        canvas {
+            position: absolute; top: 0; left: 0;
+            display: block;
+        }
+        /* Game canvas is hidden until Play is pressed */
+        #gameCanvas { display: none; background: #001428; }
+        #menuCanvas { display: block; }
+    </style>
 </head>
 <body>
     <canvas id="menuCanvas"></canvas>
@@ -18,12 +33,17 @@
         <div class="modal-box">
             <h2 class="modal-title">HOW TO PLAY</h2>
             <ul class="modal-list">
-                <li><span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> Move Fin</li>
-                <li><span class="key">SPACE</span> Shoot pearl (requires pearl power-up)</li>
-                <li><span class="key">EAT</span> smaller fish to grow bigger</li>
-                <li><span class="key">AVOID</span> larger fish &amp; Fury's attacks</li>
-                <li><span class="key">COLLECT</span> pearls from clams to gain shooting ability</li>
-                <li><span class="key">CLEAR</span> all fish in a stage to advance</li>
+                <li><span class="key">MOUSE</span> Move cursor — Fin follows it</li>
+                <li><span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> Keyboard move</li>
+                <li><span class="key">CLICK</span> or <span class="key">SPACE</span> Shoot (needs pearl)</li>
+                <li><span class="key">🦐 TINY</span> Eat tiny fish at the very start</li>
+                <li><span class="key">🐠 SMALL</span> Unlocked once Fin grows a bit</li>
+                <li><span class="key">🐟 MEDIUM</span> Unlocked at medium size</li>
+                <li><span class="key">🐋 LARGE</span> Unlocked when Fin is large</li>
+                <li><span class="key">⚠ BIG FISH</span> eat Fin if she's too small!</li>
+                <li><span class="key">☠ POISON</span> always eat Fin — use your pearl!</li>
+                <li><span class="key">5 ATTEMPTS</span> — size carries between attempts</li>
+                <li><span class="key">COLLECT</span> pearl from clam to unlock shooting</li>
             </ul>
             <button class="modal-close-btn" id="closeHowToPlay">GOT IT!</button>
         </div>
@@ -51,6 +71,17 @@
         </div>
     </div>
 
-    <script src="fin_n_fury.js"></script>
+    <!-- Game scripts — load order matters! -->
+    <script src="constants.js"></script>
+    <script src="sprites.js"></script>
+    <script src="audio.js"></script>
+    <script src="camera.js"></script>
+    <script src="input.js"></script>
+    <script src="entities.js"></script>
+    <script src="collisions.js"></script>
+    <script src="renderer.js"></script>
+    <script src="game.js"></script>
+    <script src="menu.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
