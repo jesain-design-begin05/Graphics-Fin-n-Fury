@@ -30,11 +30,27 @@ function initSpriteContainers(game) {
     game.mainfishSwimLeft     = {}; game.mainfishSwimRight    = {};
     game.mainfishAttackLeft   = {}; game.mainfishAttackRight  = {};
 
+    // ── New sprite sheets ─────────────────────────────────────
+    // Fin  (4 cols × 4 rows): row0=idle-L, row1=swim-L, row2=attack-L, row3=shoot-L
+    // All rows face LEFT naturally — renderer flips for right-facing
+    game.finSheet  = null;
+    // Fury (4 cols × 5 rows): row0=idle-L, row1=swim-L, row2=aggro-L, row3=attack-L, row4=charge-L
+    game.furySheet = null;
+
     game.clamSprite       = {};
     game.pearlSprite      = null;
     game.gameOverSprite   = null;
     game.projectileSprites = {};
     game.bossSprite       = {};
+
+    // ── Decorative world assets ───────────────────────────────
+    game.decoBoat        = null;
+    game.decoCoral1      = null;
+    game.decoCoral3      = null;
+    game.decoFishShadow  = null;
+    game.decoSeagrass    = null;
+    game.clamClosedSprite = null;  // pearl.png  = clam closed
+    game.clamOpenSprite   = null;  // pearl1_2.png = clam open with pearl
 }
 
 /**
@@ -80,6 +96,14 @@ function loadSprites(game) {
         game.furyfishAttackAltRight[f]  = img(); game.furyfishAttackAltRight[f].src  = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-right-${f}.png`;
     }
 
+    // ── New sprite sheets ─────────────────────────────────────
+    // Tries the most likely filenames — update the path below if yours differs
+    game.finSheet  = img();
+    game.furySheet = img();
+
+    game.finSheet.src  = 'fish_sprites/Finnew_sprite/fin_sprite-removebg-preview.png';
+    game.furySheet.src = 'fish_sprites/furynew_sprite/fury_sprite_animation-removebg-preview.png';
+
     // Boss re-uses furyfish swim + attack sprites
     game.bossSprite.left    = game.furyfishSwimLeft;
     game.bossSprite.right   = game.furyfishSwimRight;
@@ -89,8 +113,18 @@ function loadSprites(game) {
     // ── Collectibles ──────────────────────────────────────────
     game.clamSprite.closed = img(); game.clamSprite.closed.src = 'collectibles/clam_closed.png';
     game.clamSprite.open   = img(); game.clamSprite.open.src   = 'collectibles/clam_open.png';
-    game.pearlSprite       = img(); game.pearlSprite.src        = 'collectibles/pearl.png';
+    game.pearlSprite       = img(); game.pearlSprite.src        = 'pearl.png'; // root-level pearl
     game.gameOverSprite    = img(); game.gameOverSprite.src     = 'game_over.png';
+
+    // ── Decorative world assets ───────────────────────────────
+    game.decoBoat       = img(); game.decoBoat.src       = 'boat.png';
+    game.decoCoral1     = img(); game.decoCoral1.src     = 'coral1.png';
+    game.decoCoral3     = img(); game.decoCoral3.src     = 'coral3.png';
+    game.decoFishShadow = img(); game.decoFishShadow.src = 'fishshadow.png';
+    game.decoSeagrass   = img(); game.decoSeagrass.src   = 'seagras.png';
+    // pearl.png and pearl1_2.png replace the clam sprites
+    game.clamClosedSprite = img(); game.clamClosedSprite.src = 'pearl.png';
+    game.clamOpenSprite   = img(); game.clamOpenSprite.src   = 'pearl1_2.png';
 
     // ── Projectile frames (8 frames, zero-padded) ─────────────
     for (let f = 1; f <= 8; f++) {

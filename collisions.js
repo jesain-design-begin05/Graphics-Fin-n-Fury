@@ -50,6 +50,7 @@ function _checkEatFish(game, pr, rank) {
                 game._addScore(pts);
                 game._spawnFloatingText(f.x, f.y, `+${pts}`);
                 game.playerSize = Math.min(game.playerSize + grow, 1.85);
+                game.lastEatTime = game.elapsed;  // triggers bite animation in renderer
                 playSound(game, game.sfx.eat);
             } else if (fishEatsFin) {
                 // Fish eats Fin — start being-eaten animation, then trigger

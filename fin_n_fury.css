@@ -108,6 +108,28 @@ html, body {
 .toggle-btn.on { background:rgba(0,200,120,.25); border-color:rgba(0,230,140,.5); color:#60ffb0; }
 .toggle-btn:hover { filter:brightness(1.2); }
 
+.settings-row select {
+    flex:1;
+    padding:6px 12px;
+    background:rgba(0,100,180,.3);
+    border:1px solid rgba(0,200,255,.4);
+    border-radius:8px;
+    color:#7de8ff;
+    font-family:'Exo 2',sans-serif;
+    font-weight:700; font-size:.9rem;
+    cursor:pointer;
+    transition:background .2s,border-color .2s;
+    letter-spacing:.05em;
+    appearance:none; /* Remove default arrow */
+    background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237de8ff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position:right 8px center;
+    background-repeat:no-repeat;
+    background-size:1.5em 1.5em;
+    padding-right:2.5em;
+}
+.settings-row select:hover { filter:brightness(1.2); }
+.settings-row select:focus { outline:none; border-color:#00c8ff; box-shadow:0 0 8px rgba(0,200,255,.5); }
+
 /* Modal close button */
 .modal-close-btn {
     margin-top:10px;

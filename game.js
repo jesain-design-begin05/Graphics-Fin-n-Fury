@@ -71,6 +71,7 @@ class GameSystem {
         this.fishFacingLeft = true;
         this.fishAttacking  = false;
         this.lastAttackTime       = -100;
+        this.lastEatTime          = -100;  // set by collisions, drives bite anim
         this.attackDuration       = 0.25;
         this.firedInCurrentAttack = false;
         this.projectileSpeed      = 480;
@@ -136,6 +137,7 @@ class GameSystem {
         this.eatenTimer      = 0;
         this.respawnTimer    = 0;
         this.damageCooldown  = 0;
+        this.lastEatTime     = -100;
 
         spawnStageEntities(this);
         spawnParticles(this);

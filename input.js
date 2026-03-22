@@ -36,7 +36,9 @@ function initInput(game) {
         const sx   = e.clientX - rect.left;
         const sy   = e.clientY - rect.top;
         game.mouseScreen = { x: sx, y: sy };
-        if (game.cam) {
+        // Only activate mouse-based movement when control mode is 'mouse'
+        const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+        if (mode === 'mouse' && game.cam) {
             game.mouseWorld  = screenToWorld(game, sx, sy);
             game.mouseActive = true;
         }
@@ -62,7 +64,8 @@ function initInput(game) {
         const rect = game.canvas.getBoundingClientRect();
         const sx   = t.clientX - rect.left;
         const sy   = t.clientY - rect.top;
-        if (game.cam) { game.mouseWorld = screenToWorld(game, sx, sy); game.mouseActive = true; }
+        const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+        if (mode === 'mouse' && game.cam) { game.mouseWorld = screenToWorld(game, sx, sy); game.mouseActive = true; }
         game.fishAttacking = true;
     }, { passive: false });
 
@@ -72,7 +75,8 @@ function initInput(game) {
         const rect = game.canvas.getBoundingClientRect();
         const sx   = t.clientX - rect.left;
         const sy   = t.clientY - rect.top;
-        if (game.cam) game.mouseWorld = screenToWorld(game, sx, sy);
+        const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+        if (mode === 'mouse' && game.cam) game.mouseWorld = screenToWorld(game, sx, sy);
     }, { passive: false });
 
     game.canvas.addEventListener('touchend', () => { game.fishAttacking = false; });
@@ -97,6 +101,9 @@ function _routeCanvasClick(game, e) {
 // ── Mouse movement ────────────────────────────────────────────
 // Fish glides toward cursor at PLAYER_SPEED_BASE px/s
 function applyMouseMovement(game, dt) {
+    // If control mode is not mouse, clear mouse state and bail
+    const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+    if (mode !== 'mouse') { game.mouseActive = false; return; }
     if (!game.mouseActive || !game.mouseWorld) return;
 
     const DEAD_ZONE = 14;
@@ -116,6 +123,10 @@ function applyMouseMovement(game, dt) {
 
 // ── Keyboard movement ─────────────────────────────────────────
 function applyKeyboardMovement(game, dt) {
+    // If control mode is mouse, keyboard movement is disabled
+    const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+    if (mode === 'mouse') return;
+
     const SPD = PLAYER_SPEED_BASE;
     let moved = false;
 

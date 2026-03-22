@@ -70,6 +70,8 @@ function spawnStageEntities(game) {
         });
     }
 
+    spawnDecorations(game);
+
     if (def.hasBoss) {
         game.boss = {
             type: 'boss',
@@ -221,4 +223,29 @@ function updateBoss(game, dt) {
     b.facingLeft = b.vx < 0;
     b.x = Math.max(120, Math.min(W - 120, b.x));
     b.y = Math.max(120, Math.min(H - 120, b.y));
+}
+// ────────────────────────────────────────────────────────────────
+//  Decorations — static world props (boat, corals, seagrass, shadow)
+//  Called once per stage from spawnStageEntities.
+// ────────────────────────────────────────────────────────────────
+
+function spawnDecorations(game) {
+    const W = game.world.w;
+    const H = game.world.h;
+
+    game.decoItems = [
+        // One sunken boat in lower third
+        { type: 'boat',       x: W * 0.18 + Math.random() * W * 0.64, y: H * 0.76 + Math.random() * H * 0.12, scale: 0.90 },
+        // Coral clusters on sea floor
+        { type: 'coral1',     x: W * 0.08 + Math.random() * W * 0.30, y: H * 0.88 + Math.random() * H * 0.06, scale: 0.70 },
+        { type: 'coral1',     x: W * 0.55 + Math.random() * W * 0.35, y: H * 0.87 + Math.random() * H * 0.06, scale: 0.60 },
+        { type: 'coral3',     x: W * 0.30 + Math.random() * W * 0.20, y: H * 0.89 + Math.random() * H * 0.05, scale: 0.65 },
+        { type: 'coral3',     x: W * 0.72 + Math.random() * W * 0.20, y: H * 0.88 + Math.random() * H * 0.06, scale: 0.55 },
+        // Seagrass patches along the floor
+        { type: 'seagrass',   x: W * 0.12 + Math.random() * W * 0.18, y: H * 0.90, scale: 0.55 },
+        { type: 'seagrass',   x: W * 0.40 + Math.random() * W * 0.22, y: H * 0.90, scale: 0.48 },
+        { type: 'seagrass',   x: W * 0.65 + Math.random() * W * 0.22, y: H * 0.90, scale: 0.52 },
+        // Large fish shadow drifting mid-water in background
+        { type: 'fishshadow', x: W * 0.20 + Math.random() * W * 0.60, y: H * 0.38 + Math.random() * H * 0.20, scale: 1.10 },
+    ];
 }
