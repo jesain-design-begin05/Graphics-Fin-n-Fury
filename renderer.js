@@ -214,7 +214,7 @@ function drawBgFish(game, ctx) {
     // ── Furyfish + Enemy — share fury sheet ─────────────────────
     const fSheet        = game.furySheet;
     const hasFSheet     = fSheet && fSheet.complete && fSheet.naturalWidth > 0;
-    const FURY_SHEET_SCALE = 1.1;
+    const FURY_SHEET_SCALE = 0.9;
     {
         const FURY_SC  = FISH_SCALE.furyfish;
 
@@ -450,7 +450,7 @@ function drawPlayerFish(game, ctx) {
     }
 
     // Display scale — tune PLAYER_SHEET_SCALE to size Fin on screen
-    const PLAYER_SHEET_SCALE = 0.8;
+    const PLAYER_SHEET_SCALE = 1.3;
     const { dw, dh } = _finFrameSize(sheet, game.playerSize * PLAYER_SHEET_SCALE);
 
     // ── Respawn fall — Fin drops in from top ─────────────────
@@ -522,11 +522,13 @@ function drawPlayerFish(game, ctx) {
         else                  col = 1;
         row = FIN_ROW_ATTACK;
     } else if (game.fishMoving) {
-        col = Math.floor((e * 9) % SCOLS);
+        // Row 1: cols 0 and 1 are the clean swim frames (no wide tail extension)
+        col = Math.floor((e * 6) % 2);  // alternate between col 0 and col 1
         row = FIN_ROW_SWIM;
     } else {
-        col = Math.floor((e * 5) % SCOLS);
-        row = FIN_ROW_IDLE;
+        // Idle: col 0, row 1 — cleanest frame, no whiskers, no tail extension
+        col = 0;
+        row = FIN_ROW_SWIM;
     }
 
     const bob     = (game.fishMoving || attacking) ? 0 : Math.sin(e * 2) * 9;
