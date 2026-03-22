@@ -101,7 +101,7 @@ function loadSprites(game) {
     game.finSheet  = img();
     game.furySheet = img();
 
-    game.finSheet.src  = 'fish_sprites/Finnew_sprite/fin_sprite-removebg-preview.png';
+    game.finSheet.src  = 'fish_sprites/Finnew_sprite/fin_sprite-removebg-previeww.png';
     game.furySheet.src = 'fish_sprites/furynew_sprite/fury_sprite_animation-removebg-preview.png';
 
     // Boss re-uses furyfish swim + attack sprites

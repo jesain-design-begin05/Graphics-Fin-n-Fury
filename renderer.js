@@ -450,7 +450,7 @@ function drawPlayerFish(game, ctx) {
     }
 
     // Display scale — tune PLAYER_SHEET_SCALE to size Fin on screen
-    const PLAYER_SHEET_SCALE = 1.3;
+    const PLAYER_SHEET_SCALE = 0.4;
     const { dw, dh } = _finFrameSize(sheet, game.playerSize * PLAYER_SHEET_SCALE);
 
     // ── Respawn fall — Fin drops in from top ─────────────────
