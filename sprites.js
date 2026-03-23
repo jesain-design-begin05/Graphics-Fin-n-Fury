@@ -36,6 +36,8 @@ function initSpriteContainers(game) {
     game.finSheet  = null;
     // Fury (4 cols × 5 rows): row0=idle-L, row1=swim-L, row2=aggro-L, row3=attack-L, row4=charge-L
     game.furySheet = null;
+    // Boss image (bigguy.jpg)
+    game.bossImg   = null;
 
     game.clamSprite       = {};
     game.pearlSprite      = null;
@@ -60,8 +62,8 @@ function initSpriteContainers(game) {
 function loadSprites(game) {
     const img = () => new Image();
 
-    // ── Backgrounds (stages 1-5) ──────────────────────────────
-    for (let i = 1; i <= 5; i++) {
+    // ── Backgrounds (stages 1-15) ─────────────────────────────
+    for (let i = 1; i <= 15; i++) {
         game.bgImages[i] = img(); game.bgImages[i].src = `backgrounds/stage${i}_bg.png`;
         game.fgImages[i] = img(); game.fgImages[i].src = `backgrounds/stage${i}_fg.png`;
     }
@@ -103,6 +105,10 @@ function loadSprites(game) {
 
     game.finSheet.src  = 'fish_sprites/Finnew_sprite/fin_sprite-removebg-previeww.png';
     game.furySheet.src = 'fish_sprites/furynew_sprite/fury_sprite_animation-removebg-preview.png';
+
+    // Boss image — bigguy.jpg
+    game.bossImg = img();
+    game.bossImg.src = 'bigguy.jpg';
 
     // Boss re-uses furyfish swim + attack sprites
     game.bossSprite.left    = game.furyfishSwimLeft;

@@ -51,7 +51,7 @@ function _checkEatFish(game, pr, rank) {
                 game._spawnFloatingText(f.x, f.y, `+${pts}`);
                 game.playerSize = Math.min(game.playerSize + grow, 1.85);
                 game.lastEatTime = game.elapsed;  // triggers bite animation in renderer
-                playSound(game, game.sfx.eat);
+                playSound(game, 'eat');
             } else if (fishEatsFin) {
                 // Fish eats Fin — start being-eaten animation, then trigger
                 if (game.damageCooldown <= 0) {
@@ -131,7 +131,7 @@ function _checkProjectileHits(game) {
                 game._spawnFloatingText(game.bgFuryfish[j].x, game.bgFuryfish[j].y, `+${SCORE.POISON}`, '#ff4f00');
                 game.bgFuryfish.splice(j, 1);
                 game.projectiles.splice(i, 1);
-                playSound(game, game.sfx.shootHit);
+                playSound(game, 'shootHit');
                 hit = true; break;
             }
         }
@@ -143,7 +143,7 @@ function _checkProjectileHits(game) {
                 game._spawnFloatingText(game.bgEnemies[j].x, game.bgEnemies[j].y, `+${SCORE.ENEMY}`, '#ff8800');
                 game.bgEnemies.splice(j, 1);
                 game.projectiles.splice(i, 1);
-                playSound(game, game.sfx.shootHit);
+                playSound(game, 'shootHit');
                 hit = true; break;
             }
         }
@@ -156,7 +156,7 @@ function _checkProjectileHits(game) {
                 game.projectiles.splice(i, 1);
                 game._addScore(SCORE.BOSS_HIT);
                 game._spawnFloatingText(game.boss.x, game.boss.y - 55, `HIT! +${SCORE.BOSS_HIT}`, '#ff4f00');
-                playSound(game, game.sfx.shootHit);
+                playSound(game, 'shootHit');
                 if (game.boss.hp <= 0) {
                     game.bossDefeated = true;
                     game._addScore(SCORE.BOSS_KILL);
@@ -175,7 +175,7 @@ function _checkClamPickup(game, pr) {
                 game.hasPearlPower = true;
                 game._addScore(SCORE.PEARL);
                 game._spawnFloatingText(clam.x, clam.y - 28, `🦪 PEARL POWER! +${SCORE.PEARL}`, '#00c8ff');
-                playSound(game, game.sfx.collect);
+                playSound(game, 'collect');
             }
         }
     }

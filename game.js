@@ -16,13 +16,13 @@
 ================================================================= */
 
 class GameSystem {
-    constructor(canvas, dpr) {
+    constructor(canvas, dpr, startStage = 1) {
         this.canvas = canvas;
         this.ctx    = canvas.getContext('2d');
         this.dpr    = dpr;
 
-        this.MAX_STAGE = 5;
-        this.stage     = 1;
+        this.MAX_STAGE = 15;
+        this.stage     = startStage;
 
         initSpriteContainers(this);
 
@@ -99,6 +99,7 @@ class GameSystem {
 
         // ── Init ──────────────────────────────────────────────
         initAudio(this);
+        this.bgm = this.bgm || null;  // set by initAudio
         loadSprites(this);
         initInput(this);
         this._initStage();
@@ -264,7 +265,7 @@ class GameSystem {
     _startBeingEaten(fish) {
         if (this.isEaten || this.isRespawning) return;
         this.damageCooldown = 3.0;
-        playSound(this, this.sfx.damage);
+        playSound(this, 'damage');
         this._triggerEaten();
     }
 
@@ -329,7 +330,7 @@ class GameSystem {
             vy: 0,
             frameOffset: Math.random() * 8,
         });
-        playSound(this, this.sfx.shoot);
+        playSound(this, 'shoot');
     }
 
     _updateProjectiles(dt) {
@@ -369,6 +370,7 @@ class GameSystem {
         if (this.stage >= this.MAX_STAGE) {
             this.stageClear = false;
             this.gameOver   = true;
+            if (this.bgm) { this.bgm.pause(); this.bgm.currentTime = 0; }
             return;
         }
         this.stage++;
@@ -385,6 +387,7 @@ class GameSystem {
         this.isEaten     = false;
         this.isRespawning = false;
         this.particles   = [];
+        if (this.bgm) { this.bgm.currentTime = 0; this.bgm.play().catch(()=>{}); }
         this._initStage();
     }
 }

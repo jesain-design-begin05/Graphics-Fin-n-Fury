@@ -8,6 +8,13 @@ const BTN_DEFS = [
     { id: 'settings',  label: '⚙   SETTINGS',       primary: false },
 ];
 
+const STAGE_BTN_DEFS = [
+    { id: 'start_1',  label: 'STAGES 1–5',   theme: 'ocean',   src: 'thumbnail/day.png'      },
+    { id: 'start_6',  label: 'STAGES 6–10',  theme: 'abyss',   src: 'thumbnail/abbys.png'    },
+    { id: 'start_11', label: 'STAGES 11–15', theme: 'volcano', src: 'thumbnail/volcanic.png' },
+    { id: 'back',     label: '🔙 BACK',       primary: false },
+];
+
 const C = {
     bg0: '#000d1a', bg1: '#001e3c', bg2: '#002f54',
     panelFill:   'rgba(5, 18, 42, 0.82)',
@@ -45,11 +52,24 @@ const WORLD_SCALE = 2.8;
 
 // ── Stage definitions ─────────────────────────────────────────
 const STAGE_DEFS = {
-    1: { tinyfish: 14, clownfish: 8,  goldfish: 6,  secondfish: 3,  enemies: 2 },
-    2: { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 3 },
-    3: { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 7,  tertiaryfish: 6, furyfish: 3, enemies: 4 },
-    4: { tinyfish:  6, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 4, furyfish: 4, enemies: 5 },
-    5: { tinyfish:  4, clownfish: 8,  goldfish: 6,  tunafish: 4,    furyfish: 3,     enemies: 4, hasBoss: true },
+    // ── Ocean Stages 1-5 ──────────────────────────────────────
+    1:  { tinyfish: 14, clownfish: 8,  goldfish: 6,  secondfish: 3,  enemies: 2 },
+    2:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 3 },
+    3:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 7,  tertiaryfish: 6, furyfish: 3, enemies: 4 },
+    4:  { tinyfish:  6, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 4, furyfish: 4, enemies: 5 },
+    5:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  tunafish: 4,    furyfish: 3,     enemies: 4, hasBoss: true },
+    // ── Abyss Stages 6-10 ─────────────────────────────────────
+    6:  { tinyfish: 12, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 4 },
+    7:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
+    8:  { tinyfish:  6, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 4, enemies: 6 },
+    9:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 6 },
+    10: { tinyfish:  3, clownfish: 6,  goldfish: 5,  tunafish: 5,    furyfish: 4,     enemies: 5, hasBoss: true },
+    // ── Volcanic Stages 11-15 ─────────────────────────────────
+    11: { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 4, furyfish: 4, enemies: 6 },
+    12: { tinyfish:  6, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
+    13: { tinyfish:  4, clownfish: 6,  goldfish: 5,  secondfish: 8,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 8 },
+    14: { tinyfish:  3, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 8, furyfish: 7, enemies: 8 },
+    15: { tinyfish:  2, clownfish: 4,  goldfish: 3,  tunafish: 6,    furyfish: 6,     enemies: 6, hasBoss: true },
 };
 
 // ── Fish definitions ──────────────────────────────────────────
