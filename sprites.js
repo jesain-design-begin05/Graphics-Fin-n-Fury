@@ -81,21 +81,21 @@ function loadSprites(game) {
 
     for (const [name, folder, rL, rR, sL, sR] of types) {
         for (let f = 1; f <= 6; f++) {
-            rL[f] = img(); rL[f].src = `fish_sprites/${folder}/${name}-rest-left-${f}.png`;
-            rR[f] = img(); rR[f].src = `fish_sprites/${folder}/${name}-rest-right-${f}.png`;
-            sL[f] = img(); sL[f].src = `fish_sprites/${folder}/${name}-swim-left-${f}.png`;
-            sR[f] = img(); sR[f].src = `fish_sprites/${folder}/${name}-swim-right-${f}.png`;
+            rL[f] = img(); rL[f].src = `fish_sprites/${folder}/${name}-rest-right-${f}.png`;
+            rR[f] = img(); rR[f].src = `fish_sprites/${folder}/${name}-rest-left-${f}.png`;
+            sL[f] = img(); sL[f].src = `fish_sprites/${folder}/${name}-swim-right-${f}.png`;
+            sR[f] = img(); sR[f].src = `fish_sprites/${folder}/${name}-swim-left-${f}.png`;
         }
     }
 
     // ── Special animation frames ──────────────────────────────
     for (let f = 1; f <= 6; f++) {
-        game.mainfishAttackLeft[f]      = img(); game.mainfishAttackLeft[f].src      = `fish_sprites/mainfish_attack_sprite/mainfish-attack-left-${f}.png`;
-        game.mainfishAttackRight[f]     = img(); game.mainfishAttackRight[f].src     = `fish_sprites/mainfish_attack_sprite/mainfish-attack-right-${f}.png`;
-        game.furyfishAttackLeft[f]      = img(); game.furyfishAttackLeft[f].src      = `fish_sprites/furyfish_attack_sprite/furyfish-attack-left-${f}.png`;
-        game.furyfishAttackRight[f]     = img(); game.furyfishAttackRight[f].src     = `fish_sprites/furyfish_attack_sprite/furyfish-attack-right-${f}.png`;
-        game.furyfishAttackAltLeft[f]   = img(); game.furyfishAttackAltLeft[f].src   = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-left-${f}.png`;
-        game.furyfishAttackAltRight[f]  = img(); game.furyfishAttackAltRight[f].src  = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-right-${f}.png`;
+        game.mainfishAttackLeft[f]      = img(); game.mainfishAttackLeft[f].src      = `fish_sprites/mainfish_attack_sprite/mainfish-attack-right-${f}.png`;
+        game.mainfishAttackRight[f]     = img(); game.mainfishAttackRight[f].src     = `fish_sprites/mainfish_attack_sprite/mainfish-attack-left-${f}.png`;
+        game.furyfishAttackLeft[f]      = img(); game.furyfishAttackLeft[f].src      = `fish_sprites/furyfish_attack_sprite/furyfish-attack-right-${f}.png`;
+        game.furyfishAttackRight[f]     = img(); game.furyfishAttackRight[f].src     = `fish_sprites/furyfish_attack_sprite/furyfish-attack-left-${f}.png`;
+        game.furyfishAttackAltLeft[f]   = img(); game.furyfishAttackAltLeft[f].src   = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-right-${f}.png`;
+        game.furyfishAttackAltRight[f]  = img(); game.furyfishAttackAltRight[f].src  = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-left-${f}.png`;
     }
 
     // ── New sprite sheets ─────────────────────────────────────
