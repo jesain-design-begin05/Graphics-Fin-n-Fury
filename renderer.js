@@ -230,245 +230,112 @@ function drawBgFish(game, ctx) {
     drawSet(game.bgTertiaryfish, game.tertiaryRestLeft,   game.tertiaryRestRight,   game.tertiarySwimLeft,   game.tertiarySwimRight,   FISH_SCALE.tertiary,   2);
     drawSet(game.bgTunafish,     game.tunafishRestLeft,   game.tunafishRestRight,   game.tunafishSwimLeft,   game.tunafishSwimRight,   FISH_SCALE.tunafish,   3);
 
-    // ── Furyfish + Enemy — fully drawn in canvas (no sprite) ────
-    const _drawFuryFish = (ctx, e, sc, isL, isAttacking, bobOffset, frameOffset, colorSet) => {
-        const t = e * 6 + frameOffset;          // animation time per fish
-        const w = 110 * sc, h = 78 * sc;        // base body size
+    // ── Furyfish + Enemy — share fury sheet ─────────────────────
+    const fSheet        = game.furySheet;
+    const hasFSheet     = fSheet && fSheet.complete && fSheet.naturalWidth > 0;
+    const FURY_SHEET_SCALE = 0.9;   // preview.png: 4×5 grid, 250×200px per frame — same as original
+    {
+        const FURY_SC  = FISH_SCALE.furyfish;
 
-        // ── Tail wag ──────────────────────────────────────────
-        const tailWag = isAttacking
-            ? Math.sin(t * 2.2) * 22 * sc       // frantic wag when attacking
-            : Math.sin(t * 0.9) * 9 * sc;       // gentle swim wag
+        for (const f of game.bgFuryfish) {
+            if (!isOnScreen(game, f.x, f.y, 160)) continue;
+            const s      = worldToScreen(game, f.x, f.y);
+            const isL    = f.vx < 0;  // true = moving left (natural sheet direction)
+            const sc     = FURY_SC * (f.isAttacking ? 1.12 : 1.0);
+            const bob    = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
+            const { dw, dh } = _furyFrameSize(fSheet, sc * FURY_SHEET_SCALE);
 
-        // ── Mouth open amount ─────────────────────────────────
-        const mouthOpen = isAttacking
-            ? Math.max(0, Math.sin(t * 1.8)) * 0.9   // chomps open/closed
-            : 0.08;                                    // slightly open at rest
-
-        ctx.save();
-        if (!isL) ctx.scale(-1, 1);   // fish faces LEFT naturally
-
-        // ── Tail (drawn first, behind body) ───────────────────
-        ctx.save();
-        // Main tail fan
-        const tailX = w * 0.38;
-        const tailY = tailWag;
-        ctx.fillStyle = colorSet.tail;
-        ctx.beginPath();
-        ctx.moveTo(tailX, 0);
-        ctx.bezierCurveTo(tailX + w*0.28, -h*0.38 + tailY, tailX + w*0.52, -h*0.42 + tailY*0.6, tailX + w*0.48, -h*0.28 + tailY*0.4);
-        ctx.bezierCurveTo(tailX + w*0.38, -h*0.08, tailX + w*0.28, 0, tailX, 0);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(tailX, 0);
-        ctx.bezierCurveTo(tailX + w*0.28, h*0.38 + tailY, tailX + w*0.52, h*0.42 + tailY*0.6, tailX + w*0.48, h*0.28 + tailY*0.4);
-        ctx.bezierCurveTo(tailX + w*0.38, h*0.08, tailX + w*0.28, 0, tailX, 0);
-        ctx.fill();
-        // Tail fin detail lines
-        ctx.strokeStyle = colorSet.finLine;
-        ctx.lineWidth = 1.2 * sc;
-        for (let i = 0; i < 3; i++) {
-            const ly = (i - 1) * h * 0.12 + tailY * 0.3;
-            ctx.beginPath();
-            ctx.moveTo(tailX + w*0.05, ly);
-            ctx.lineTo(tailX + w*0.44 + (i===1?0.02:0), ly * 0.5 + tailY*(0.2+i*0.1));
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        // ── Dorsal fin ────────────────────────────────────────
-        ctx.fillStyle = colorSet.fin;
-        const dorsalWave = Math.sin(t * 0.7) * 3 * sc;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.05, -h*0.38);
-        ctx.bezierCurveTo(-w*0.02, -h*0.72 + dorsalWave, w*0.18, -h*0.78 + dorsalWave, w*0.25, -h*0.42);
-        ctx.bezierCurveTo(w*0.18, -h*0.38, w*0.05, -h*0.38, -w*0.05, -h*0.38);
-        ctx.fill();
-        // Dorsal fin spines
-        ctx.strokeStyle = colorSet.spine;
-        ctx.lineWidth = 1.0 * sc;
-        for (let i = 0; i < 4; i++) {
-            const fx = -w*0.02 + i * w*0.09;
-            const fy = -h*0.38 - (i<2 ? (i+1)*h*0.08 : (4-i)*h*0.06) + dorsalWave;
-            ctx.beginPath(); ctx.moveTo(fx, -h*0.38); ctx.lineTo(fx, fy); ctx.stroke();
-        }
-
-        // ── Pectoral fin ─────────────────────────────────────
-        const pectoralWave = Math.sin(t * 1.1 + 0.5) * 4 * sc;
-        ctx.fillStyle = colorSet.fin;
-        ctx.beginPath();
-        ctx.moveTo(w*0.05, h*0.05);
-        ctx.bezierCurveTo(w*0.12, h*0.45 + pectoralWave, w*0.28, h*0.52 + pectoralWave, w*0.22, h*0.38);
-        ctx.bezierCurveTo(w*0.15, h*0.22, w*0.08, h*0.12, w*0.05, h*0.05);
-        ctx.fill();
-
-        // ── Body ─────────────────────────────────────────────
-        const bodyGrad = ctx.createRadialGradient(-w*0.1, -h*0.1, h*0.05, 0, 0, w*0.7);
-        bodyGrad.addColorStop(0, colorSet.bodyLight);
-        bodyGrad.addColorStop(0.6, colorSet.body);
-        bodyGrad.addColorStop(1, colorSet.bodyDark);
-        ctx.fillStyle = bodyGrad;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, w*0.52, h*0.44, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Scale texture
-        ctx.strokeStyle = colorSet.scale;
-        ctx.lineWidth = 0.8 * sc;
-        for (let row2 = -1; row2 <= 1; row2++) {
-            for (let col2 = 0; col2 <= 2; col2++) {
-                const sx = -w*0.12 + col2 * w*0.18 + (row2&1) * w*0.09;
-                const sy = row2 * h*0.14;
-                ctx.beginPath();
-                ctx.arc(sx, sy, w*0.07, Math.PI*0.2, Math.PI*0.9);
-                ctx.stroke();
-            }
-        }
-
-        // ── Angler lure (antenna) ─────────────────────────────
-        const lureWave = Math.sin(t * 1.3) * 5 * sc;
-        ctx.strokeStyle = colorSet.antenna;
-        ctx.lineWidth = 1.5 * sc;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.28, -h*0.44);
-        ctx.bezierCurveTo(-w*0.22, -h*0.75, -w*0.05, -h*0.82 + lureWave, w*0.08, -h*0.72 + lureWave);
-        ctx.stroke();
-        // Lure glow ball
-        const lurePulse = 0.6 + Math.sin(t * 2.1) * 0.4;
-        ctx.save();
-        ctx.shadowColor = `rgba(180,255,180,${lurePulse})`;
-        ctx.shadowBlur = 8 * sc;
-        ctx.fillStyle = `rgba(160,255,180,${0.7 + lurePulse * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(w*0.08, -h*0.72 + lureWave, 5 * sc, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // ── Hat ───────────────────────────────────────────────
-        const hatX = -w*0.12, hatY = -h*0.44;
-        // Brim
-        ctx.fillStyle = colorSet.hat;
-        ctx.beginPath();
-        ctx.ellipse(hatX, hatY + h*0.07, w*0.28, h*0.07, -0.15, 0, Math.PI*2);
-        ctx.fill();
-        // Crown
-        ctx.beginPath();
-        ctx.roundRect(hatX - w*0.18, hatY - h*0.22, w*0.36, h*0.30, 4*sc);
-        ctx.fill();
-        // Hat band
-        ctx.fillStyle = colorSet.hatBand;
-        ctx.fillRect(hatX - w*0.18, hatY - h*0.02, w*0.36, h*0.07);
-        // Buckle
-        ctx.fillStyle = '#e8c840';
-        ctx.fillRect(hatX - w*0.04, hatY, w*0.08, h*0.07);
-        ctx.strokeStyle = '#a08820'; ctx.lineWidth = 0.8*sc;
-        ctx.strokeRect(hatX - w*0.04, hatY, w*0.08, h*0.07);
-
-        // ── Eye patch + eye ───────────────────────────────────
-        ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.ellipse(-w*0.24, -h*0.08, w*0.095, h*0.09, 0, 0, Math.PI*2); ctx.fill();
-        // Patch strap
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 2*sc;
-        ctx.beginPath(); ctx.moveTo(-w*0.18, -h*0.12); ctx.lineTo(-w*0.08, -h*0.16); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-w*0.18, -h*0.04); ctx.lineTo(-w*0.08, h*0.02); ctx.stroke();
-
-        // ── Mouth ─────────────────────────────────────────────
-        const mouthH = h * 0.30 * mouthOpen + h * 0.04;
-        const mouthY = h * 0.10;
-        // Mouth cavity
-        ctx.fillStyle = colorSet.mouth;
-        ctx.beginPath();
-        ctx.ellipse(-w*0.26, mouthY, w*0.26, mouthH, 0, 0, Math.PI*2);
-        ctx.fill();
-        // Tongue when open
-        if (mouthOpen > 0.3) {
-            ctx.fillStyle = colorSet.tongue;
-            ctx.beginPath();
-            ctx.ellipse(-w*0.26, mouthY + mouthH*0.3, w*0.12, mouthH*0.45, 0, 0, Math.PI*2);
-            ctx.fill();
-        }
-        // Upper teeth
-        ctx.fillStyle = '#e8e8e8';
-        const teethCount = 5;
-        for (let i = 0; i < teethCount; i++) {
-            const tx = -w*0.44 + i * w*0.095;
-            const ty = mouthY - mouthH * 0.55;
-            const th = h * (0.12 + (i===2?0.06:0)) * Math.max(0.3, mouthOpen + 0.4);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + w*0.04, ty + th);
-            ctx.lineTo(tx + w*0.085, ty);
-            ctx.closePath(); ctx.fill();
-        }
-        // Lower teeth
-        for (let i = 0; i < teethCount - 1; i++) {
-            const tx = -w*0.40 + i * w*0.095;
-            const ty = mouthY + mouthH * 0.55;
-            const th = h * (0.10 + (i===1?0.05:0)) * Math.max(0.3, mouthOpen + 0.3);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + w*0.04, ty - th);
-            ctx.lineTo(tx + w*0.085, ty);
-            ctx.closePath(); ctx.fill();
-        }
-
-        // ── Attack red glow around mouth ──────────────────────
-        if (isAttacking && mouthOpen > 0.4) {
             ctx.save();
-            ctx.shadowColor = 'rgba(255,40,0,0.7)';
-            ctx.shadowBlur = 18 * sc;
-            ctx.strokeStyle = 'rgba(255,60,0,0.5)';
-            ctx.lineWidth = 2 * sc;
-            ctx.beginPath();
-            ctx.ellipse(-w*0.26, mouthY, w*0.28, mouthH + h*0.04, 0, 0, Math.PI*2);
-            ctx.stroke();
+            ctx.translate(s.x, s.y + bob);
+
+            if (f.isAttacking) {
+                ctx.shadowColor = `rgba(255,30,0,${0.5 + Math.sin(e * 8) * 0.3})`;
+                ctx.shadowBlur  = 20 + Math.sin(e * 8) * 8;
+            }
+
+            if (hasFSheet) {
+                // SHEET LAYOUT:
+                // COLS 0-3 = animation frames (body/tail movement cycle) — cycle these for wag
+                // ROWS 0-4 = mouth states: row0=closed, row4=wide open chomp
+                // Patrol: cycle cols only, stay on row 0 (closed mouth, tail wags)
+                // Attacking: cycle cols fast + ping-pong rows 0→4→0 (chomp + tail snap)
+                let col, row;
+                if (f.isAttacking) {
+                    // Fast col cycle for frantic body movement
+                    col = Math.floor((e * 12 + f.frameOffset) % SCOLS);
+                    // Ping-pong rows 0→4→0 for mouth opening/closing chomp
+                    const half = FURY_ROWS - 1; // 4
+                    const rowF = (e * 7 + f.frameOffset * 0.25) % (half * 2);
+                    row = rowF < half ? Math.floor(rowF) : Math.floor(half * 2 - rowF);
+                    row = Math.max(0, Math.min(FURY_ROWS - 1, row));
+                } else {
+                    // Patrol: tail/body wag via col cycle, mouth closed (row 0)
+                    col = Math.floor((e * 5 + f.frameOffset) % SCOLS);
+                    row = 0;
+                }
+                // Clip to exactly one frame so tail art doesn't bleed into adjacent cells
+                ctx.beginPath();
+                ctx.rect(-dw / 2, -dh / 2, dw, dh);
+                ctx.clip();
+                // Sheet faces LEFT — flip when moving right
+                if (!isL) ctx.scale(-1, 1);
+                _drawFrame(ctx, fSheet, col, row, SCOLS, FURY_ROWS, dw, dh);
+            } else {
+                // Fallback old per-frame sprites
+                const frame = Math.floor((e * 10 + f.frameOffset) % 6) + 1;
+                let img = f.isAttacking
+                    ? (isL ? game.furyfishAttackLeft : game.furyfishAttackRight)[frame]
+                    : null;
+                if (!img || !img.complete || img.naturalWidth === 0)
+                    img = (isL ? game.furyfishSwimLeft : game.furyfishSwimRight)[frame];
+                if (img && img.complete && img.naturalWidth !== 0) {
+                    const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+                    ctx.drawImage(img, -w/2, -h/2, w, h);
+                }
+            }
             ctx.restore();
         }
-
-        ctx.restore(); // flip restore
-    };
-
-    // Color sets
-    const FURY_COLORS = {
-        body: '#2a3040', bodyLight: '#3d4a60', bodyDark: '#151820',
-        tail: '#1a2030', fin: '#202838', finLine: '#4a5878',
-        scale: '#3a4560', spine: '#4a5878',
-        hat: '#c0306a', hatBand: '#8a1845',
-        antenna: '#606878', mouth: '#3a1018', tongue: '#c03050',
-    };
-    const ENEMY_COLORS = {
-        body: '#2a3020', bodyLight: '#3d4830', bodyDark: '#141810',
-        tail: '#1a2015', fin: '#252c18', finLine: '#404c28',
-        scale: '#353f22', spine: '#404c28',
-        hat: '#c05830', hatBand: '#8a3010',
-        antenna: '#607058', mouth: '#381510', tongue: '#b02838',
-    };
-
-    for (const f of game.bgFuryfish) {
-        if (!isOnScreen(game, f.x, f.y, 160)) continue;
-        const s   = worldToScreen(game, f.x, f.y);
-        const sc  = FISH_SCALE.furyfish * (f.isAttacking ? 1.1 : 1.0);
-        const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
-        const isL = f.vx < 0;
-        ctx.save();
-        ctx.translate(s.x, s.y + bob);
-        if (f.isAttacking) {
-            ctx.shadowColor = `rgba(255,30,0,${0.45 + Math.sin(e * 8) * 0.25})`;
-            ctx.shadowBlur  = 18 + Math.sin(e * 8) * 7;
-        }
-        _drawFuryFish(ctx, e, sc, isL, f.isAttacking, f.bobOffset, f.frameOffset, FURY_COLORS);
-        ctx.restore();
     }
 
+    // ── Enemy fish ─────────────────────────────────────────────
+    // ── Enemy fish — also use fury sheet ─────────────────────────
     for (const f of game.bgEnemies) {
         if (!isOnScreen(game, f.x, f.y, 150)) continue;
-        const s   = worldToScreen(game, f.x, f.y);
-        const sc  = FISH_SCALE.enemy * (f.isAttacking ? 1.08 : 1.0);
-        const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
-        const isL = f.vx < 0;
+        const s    = worldToScreen(game, f.x, f.y);
+        const isL  = f.vx < 0;
+        const sc   = FISH_SCALE.enemy * (f.isAttacking ? 1.08 : 1.0);
+        const bob  = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
+        const { dw, dh } = _furyFrameSize(fSheet, sc * FURY_SHEET_SCALE);
+
         ctx.save();
         ctx.translate(s.x, s.y + bob);
         if (f.isAttacking) { ctx.shadowColor = 'rgba(200,80,0,0.4)'; ctx.shadowBlur = 12; }
-        _drawFuryFish(ctx, e, sc, isL, f.isAttacking, f.bobOffset, f.frameOffset, ENEMY_COLORS);
+
+        if (hasFSheet) {
+            let col, row;
+            if (f.isAttacking) {
+                col = Math.floor((e * 12 + f.frameOffset) % SCOLS);
+                const half = FURY_ROWS - 1;
+                const rowF = (e * 7 + f.frameOffset * 0.25) % (half * 2);
+                row = rowF < half ? Math.floor(rowF) : Math.floor(half * 2 - rowF);
+                row = Math.max(0, Math.min(FURY_ROWS - 1, row));
+            } else {
+                col = Math.floor((e * 5 + f.frameOffset) % SCOLS);
+                row = 0;
+            }
+            ctx.beginPath();
+            ctx.rect(-dw / 2, -dh / 2, dw, dh);
+            ctx.clip();
+            if (!isL) ctx.scale(-1, 1);
+            _drawFrame(ctx, fSheet, col, Math.max(0, Math.min(FURY_ROWS-1, row)), SCOLS, FURY_ROWS, dw, dh);
+        } else {
+            const frame = Math.floor((e * 10 + f.frameOffset) % 6) + 1;
+            const img = (isL ? game.furyfishSwimLeft : game.furyfishSwimRight)[frame];
+            if (img && img.complete && img.naturalWidth !== 0) {
+                const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+                ctx.drawImage(img, -w/2, -h/2, w, h);
+            }
+        }
         ctx.restore();
     }
 }
@@ -521,15 +388,17 @@ function drawBoss(game, ctx) {
         let bCol, bRow;
         if (b.isCharging) {
             bCol = Math.floor((e * 14 + b.frameOffset) % SCOLS);
-            bRow = FURY_ROWS - 1; // row 4 = open mouth + tail snap
+            const half = FURY_ROWS - 1;
+            const rowF = (e * 10 + b.frameOffset * 0.25) % (half * 2);
+            bRow = rowF < half ? Math.floor(rowF) : Math.floor(half * 2 - rowF);
+            bRow = Math.max(0, Math.min(FURY_ROWS - 1, bRow));
         } else {
-            bCol = Math.floor((e * 6 + b.frameOffset) % SCOLS);
-            bRow = Math.floor((e * 3 + b.frameOffset * 0.7) % (FURY_ROWS - 1));
+            bCol = Math.floor((e * 5 + b.frameOffset) % SCOLS);
+            bRow = 0;
         }
         ctx.beginPath();
         ctx.rect(-bdw / 2, -bdh / 2, bdw, bdh);
         ctx.clip();
-        ctx.globalCompositeOperation = 'screen';
         if (!b.facingLeft) ctx.scale(-1, 1);
         _drawFrame(ctx, bSheet, bCol, bRow, SCOLS, FURY_ROWS, bdw, bdh);
     } else {

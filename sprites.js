@@ -62,10 +62,25 @@ function initSpriteContainers(game) {
 function loadSprites(game) {
     const img = () => new Image();
 
-    // ── Backgrounds (stages 1-15) ─────────────────────────────
-    for (let i = 1; i <= 15; i++) {
-        game.bgImages[i] = img(); game.bgImages[i].src = `backgrounds/stage${i}_bg.png`;
-        game.fgImages[i] = img(); game.fgImages[i].src = `backgrounds/stage${i}_fg.png`;
+    // ── Backgrounds ───────────────────────────────────────────
+    // STAGE_BG_MAP (constants.js) now uses direct { bg, fg } paths
+    // that point straight at the PNG files on disk, e.g.:
+    //   { bg: 'backgrounds_new/Path_1_kelpforests.png', fg: null }
+    //
+    // game.bgImages[N] / game.fgImages[N] are keyed by global stage
+    // number (1-15) so the renderer can look them up via game.stage.
+    for (let s = 1; s <= 15; s++) {
+        const map = STAGE_BG_MAP[s];
+        if (map) {
+            if (map.bg) {
+                game.bgImages[s] = img();
+                game.bgImages[s].src = map.bg;
+            }
+            if (map.fg) {
+                game.fgImages[s] = img();
+                game.fgImages[s].src = map.fg;
+            }
+        }
     }
 
     // ── Fish sprite sheets ────────────────────────────────────
@@ -99,7 +114,6 @@ function loadSprites(game) {
     }
 
     // ── New sprite sheets ─────────────────────────────────────
-    // Tries the most likely filenames — update the path below if yours differs
     game.finSheet  = img();
     game.furySheet = img();
 
@@ -119,7 +133,7 @@ function loadSprites(game) {
     // ── Collectibles ──────────────────────────────────────────
     game.clamSprite.closed = img(); game.clamSprite.closed.src = 'collectibles/clam_closed.png';
     game.clamSprite.open   = img(); game.clamSprite.open.src   = 'collectibles/clam_open.png';
-    game.pearlSprite       = img(); game.pearlSprite.src        = 'pearl.png'; // root-level pearl
+    game.pearlSprite       = img(); game.pearlSprite.src        = 'pearl.png';
     game.gameOverSprite    = img(); game.gameOverSprite.src     = 'game_over.png';
 
     // ── Decorative world assets ───────────────────────────────
@@ -128,7 +142,6 @@ function loadSprites(game) {
     game.decoCoral3     = img(); game.decoCoral3.src     = 'coral3.png';
     game.decoFishShadow = img(); game.decoFishShadow.src = 'fishshadow.png';
     game.decoSeagrass   = img(); game.decoSeagrass.src   = 'seagras.png';
-    // pearl.png and pearl1_2.png replace the clam sprites
     game.clamClosedSprite = img(); game.clamClosedSprite.src = 'pearl.png';
     game.clamOpenSprite   = img(); game.clamOpenSprite.src   = 'pearl1_2.png';
 

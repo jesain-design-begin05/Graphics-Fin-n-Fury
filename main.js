@@ -13,9 +13,13 @@
      8. renderer.js
      9. game.js
     10. menu.js
-    11. main.js    ← this file
+    11. stagemap.js
+    12. tutorial.js
+    13. main.js    ← this file
 ================================================================= */
 
 window.addEventListener('DOMContentLoaded', () => {
-    new MenuSystem();
+    // Assign to window.menuSystem so stagemap.js can call
+    // window.menuSystem._startGame(stageNum) from the map modal buttons.
+    window.menuSystem = new MenuSystem();
 });

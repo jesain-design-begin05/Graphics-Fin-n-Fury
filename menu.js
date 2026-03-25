@@ -1,5 +1,5 @@
 /* ================================================================
-   menu.js  —  MenuSystem (full redesign)
+   menu.js  —  MenuSystem (map modal replaces canvas stage select)
 ================================================================= */
 
 class MenuSystem {
@@ -15,14 +15,8 @@ class MenuSystem {
         this.isGameStarted = false;
         this.game = null;
 
-        this.menuState = 'main'; // 'main' or 'stage_select'
-
         this.mx = 0; this.my = 0;
         this.buttons  = BTN_DEFS.map(d => ({ ...d, rect: null, hover: false, press: false, ripple: null }));
-        this.stageBtns = STAGE_BTN_DEFS.map(d => ({
-            ...d, rect: null, hover: false, press: false, ripple: null,
-            img: Object.assign(new Image(), { src: d.src }),
-        }));
         this.bubbles  = [];
         this.particles = [];
         this.fishSilh = [];
@@ -57,8 +51,7 @@ class MenuSystem {
         this.menuCanvas.addEventListener('touchstart', e => this._onTouch(e,'down'), {passive:true});
         this.menuCanvas.addEventListener('touchend',   e => this._onTouch(e,'up'),   {passive:true});
         this.menuCanvas.addEventListener('touchmove',  e => this._onTouch(e,'move'), {passive:true});
-        document.getElementById('closeHowToPlay').addEventListener('click', () => this._closeModal('howToPlayModal'));
-        document.getElementById('closeSettings').addEventListener('click',   () => this._closeModal('settingsModal'));
+        document.getElementById('closeSettings').addEventListener('click', () => this._closeModal('settingsModal'));
         ['musicVol','sfxVol'].forEach(id => {
             const el = document.getElementById(id);
             el.addEventListener('input', () => {
@@ -86,7 +79,6 @@ class MenuSystem {
         this.bgm.loop = true;
         this.bgm.volume = this.musicVolume;
         this.bgm.play().catch(() => {
-            // Autoplay blocked — play on first interaction
             const unlock = () => {
                 this.bgm.play().catch(()=>{});
                 window.removeEventListener('click', unlock);
@@ -452,6 +444,7 @@ class MenuSystem {
         }
     }
 
+    // ── Main menu panel only (stage_select removed — now handled by HTML map modal) ──
     _drawPanel(ctx, W, H, e) {
         const pW = Math.min(W * 0.48, 680), pH = Math.min(H * 0.84, 600);
         const pX = (W - pW) / 2, pY = (H - pH) / 2 - H * 0.02 + this.floatY;
@@ -479,120 +472,27 @@ class MenuSystem {
         ctx.fillStyle = sh; this._rrPath(ctx,pX+2,pY+2,pW-4,pH*0.3,20); ctx.fill();
         const cx = pX + pW/2;
 
-        if (this.menuState === 'stage_select') {
-            // ── Stage Select Screen ────────────────────────────
-            ctx.save();
-            ctx.font = `${Math.min(pW*0.11, 80)}px 'Bangers', cursive`;
-            ctx.fillStyle = '#ffd060'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(255,180,0,0.6)'; ctx.shadowBlur = 18;
-            ctx.fillText('SELECT STAGE', cx, pY + pH*0.14);
-            ctx.restore();
-
-            const divY = pY + pH * 0.245;
-            ctx.save();
-            const dg = ctx.createLinearGradient(pX+pW*0.1, divY, pX+pW*0.9, divY);
-            dg.addColorStop(0, 'rgba(0,200,255,0)'); dg.addColorStop(0.5,'rgba(0,200,255,0.45)'); dg.addColorStop(1, 'rgba(0,200,255,0)');
-            ctx.strokeStyle = dg; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(pX+pW*0.1,divY); ctx.lineTo(pX+pW*0.9,divY); ctx.stroke(); ctx.restore();
-
-            // 3 stage buttons with thumbnails
-            const gap = pW * 0.03;
-            const sideMargin = pW * 0.06;
-            const availW = pW - sideMargin * 2;
-            const cardW = (availW - gap * 2) / 3;
-            const cardH = Math.min(cardW * 0.72, pH * 0.38);
-            const cardY = divY + pH * 0.04;
-
-            for (let i = 0; i < 3; i++) {
-                const btn = this.stageBtns[i];
-                const bx = pX + sideMargin + i * (cardW + gap);
-                btn.rect = { x: bx, y: cardY - this.floatY, w: cardW, h: cardH, r: 10 };
-                this._drawStageCard(ctx, btn, bx, cardY, cardW, cardH, e);
-            }
-
-            // Back button
-            const backW = Math.min(pW*0.38, 220), backH = Math.min(pH*0.11, 48);
-            const backX = cx - backW/2, backY = cardY + cardH + pH*0.06;
-            const backBtn = this.stageBtns[3];
-            backBtn.rect = { x: backX, y: backY - this.floatY, w: backW, h: backH, r: backH/2 };
-            this._drawBtn(ctx, backBtn, e);
-        } else {
-            // ── Main Menu ──────────────────────────────────────
-            this._drawWoodenSign(ctx, cx, pY + pH*0.215, pW*0.92, pH*0.295, e);
-            const tagY = pY + pH * 0.47;
-            ctx.save();
-            ctx.font = `italic 500 ${Math.min(pW*0.037, 17)}px 'Exo 2', sans-serif`;
-            ctx.fillStyle = 'rgba(195,238,255,0.88)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(0,140,220,0.55)'; ctx.shadowBlur = 9;
-            ctx.fillText('Eat all fish. Grab pearls to shoot. Survive 15 stages.', cx, tagY); ctx.restore();
-            const divY = pY + pH * 0.535;
-            ctx.save();
-            const dg = ctx.createLinearGradient(pX+pW*0.1, divY, pX+pW*0.9, divY);
-            dg.addColorStop(0, 'rgba(0,200,255,0)'); dg.addColorStop(0.5,'rgba(0,200,255,0.45)'); dg.addColorStop(1, 'rgba(0,200,255,0)');
-            ctx.strokeStyle = dg; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(pX+pW*0.1,divY); ctx.lineTo(pX+pW*0.9,divY); ctx.stroke(); ctx.restore();
-            const btnW = Math.min(pW*0.68, 380), btnH = Math.min(pH*0.107, 52);
-            const btnGp = Math.min(pH*0.028, 14), btnR = btnH/2;
-            const btnX = cx - btnW/2, btnSY = divY + pH*0.045;
-            for (let i = 0; i < this.buttons.length; i++) {
-                const btn = this.buttons[i], by = btnSY + i*(btnH+btnGp);
-                btn.rect = { x:btnX, y:by, w:btnW, h:btnH, r:btnR };
-                this._drawBtn(ctx, btn, e);
-            }
-        }
-        ctx.restore();
-    }
-
-    _drawStageCard(ctx, btn, bx, by, w, h, e) {
-        const hov = btn.hover, prs = btn.press;
-        const yOff = prs ? 2 : hov ? -4 : 0;
-        const r = 10;
+        // ── Main Menu only ──────────────────────────────────────
+        this._drawWoodenSign(ctx, cx, pY + pH*0.215, pW*0.92, pH*0.295, e);
+        const tagY = pY + pH * 0.47;
         ctx.save();
-        ctx.translate(0, yOff);
-        // Shadow
-        ctx.shadowColor = hov ? 'rgba(0,200,255,0.6)' : 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur  = hov ? 22 : 10;
-        // Rounded clip for image
+        ctx.font = `italic 500 ${Math.min(pW*0.037, 17)}px 'Exo 2', sans-serif`;
+        ctx.fillStyle = 'rgba(195,238,255,0.88)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,140,220,0.55)'; ctx.shadowBlur = 9;
+        ctx.fillText('Eat all fish. Grab pearls to shoot. Survive 5 stages.', cx, tagY); ctx.restore();
+        const divY = pY + pH * 0.535;
         ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(bx, by, w, h, r);
-        ctx.clip();
-        // Thumbnail image
-        if (btn.img && btn.img.complete && btn.img.naturalWidth > 0) {
-            ctx.drawImage(btn.img, bx, by, w, h);
-        } else {
-            // Fallback gradient per theme
-            const themes = { ocean: ['#0050a0','#003060'], abyss: ['#220044','#110022'], volcano: ['#801000','#400800'] };
-            const [c0,c1] = themes[btn.theme] || themes.ocean;
-            const g = ctx.createLinearGradient(bx,by,bx,by+h);
-            g.addColorStop(0,c0); g.addColorStop(1,c1);
-            ctx.fillStyle = g; ctx.fillRect(bx, by, w, h);
-        }
-        // Dark overlay
-        const ov = ctx.createLinearGradient(bx,by,bx,by+h);
-        ov.addColorStop(0,'rgba(0,0,0,0.05)'); ov.addColorStop(1,'rgba(0,0,0,0.55)');
-        ctx.fillStyle = ov; ctx.fillRect(bx, by, w, h);
-        ctx.restore();
-        // Border
-        ctx.strokeStyle = hov ? 'rgba(0,220,255,1)' : 'rgba(60,180,255,0.45)';
-        ctx.lineWidth = hov ? 2.5 : 1.5;
-        ctx.beginPath(); ctx.roundRect(bx, by, w, h, r); ctx.stroke();
-        // Label
-        ctx.save();
-        ctx.font = `bold ${Math.max(11, w*0.13)}px 'Bangers', cursive`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(btn.label, bx + w/2, by + h - 8);
-        ctx.restore();
-        // Ripple
-        if (btn.ripple) {
-            ctx.save();
-            ctx.beginPath(); ctx.roundRect(bx, by, w, h, r); ctx.clip();
-            ctx.strokeStyle = `rgba(255,255,255,${btn.ripple.a})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(btn.ripple.x, btn.ripple.y + yOff, btn.ripple.r, 0, Math.PI*2); ctx.stroke();
-            ctx.restore();
+        const dg = ctx.createLinearGradient(pX+pW*0.1, divY, pX+pW*0.9, divY);
+        dg.addColorStop(0, 'rgba(0,200,255,0)'); dg.addColorStop(0.5,'rgba(0,200,255,0.45)'); dg.addColorStop(1, 'rgba(0,200,255,0)');
+        ctx.strokeStyle = dg; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pX+pW*0.1,divY); ctx.lineTo(pX+pW*0.9,divY); ctx.stroke(); ctx.restore();
+        const btnW = Math.min(pW*0.68, 380), btnH = Math.min(pH*0.107, 52);
+        const btnGp = Math.min(pH*0.028, 14), btnR = btnH/2;
+        const btnX = cx - btnW/2, btnSY = divY + pH*0.045;
+        for (let i = 0; i < this.buttons.length; i++) {
+            const btn = this.buttons[i], by = btnSY + i*(btnH+btnGp);
+            btn.rect = { x:btnX, y:by, w:btnW, h:btnH, r:btnR };
+            this._drawBtn(ctx, btn, e);
         }
         ctx.restore();
     }
@@ -693,36 +593,21 @@ class MenuSystem {
         return { x:(e.clientX-r.left)*(this.W/r.width), y:(e.clientY-r.top)*(this.H/r.height) };
     }
 
-    _hitBtn(px,py) {
-        for (const btn of this.buttons) {
-            if (!btn.rect) continue;
-            const {x,y,w,h}=btn.rect, byAdj=y+this.floatY;
-            if (px>=x&&px<=x+w&&py>=byAdj&&py<=byAdj+h) return btn;
-        }
-        return null;
-    }
-
     _onMove(e) {
         const {x,y}=this._cssPt(e); this.mx=x; this.my=y;
-        // Hit test all active buttons
-        const allBtns = this.menuState === 'stage_select'
-            ? [...this.stageBtns]
-            : [...this.buttons];
-        const hit = this._hitBtnList(allBtns, x, y);
-        for (const btn of allBtns) btn.hover = (btn === hit);
+        const hit = this._hitBtnList(this.buttons, x, y);
+        for (const btn of this.buttons) btn.hover = (btn === hit);
         this.menuCanvas.style.cursor = hit ? 'pointer' : 'default';
     }
     _onDown(e) {
         const {x,y}=this._cssPt(e);
-        const allBtns = this.menuState === 'stage_select' ? [...this.stageBtns] : [...this.buttons];
-        const hit = this._hitBtnList(allBtns, x, y);
+        const hit = this._hitBtnList(this.buttons, x, y);
         if (hit) hit.press = true;
     }
     _onUp(e) {
         const {x,y}=this._cssPt(e);
-        const allBtns = this.menuState === 'stage_select' ? [...this.stageBtns] : [...this.buttons];
-        const hit = this._hitBtnList(allBtns, x, y);
-        for (const btn of allBtns) {
+        const hit = this._hitBtnList(this.buttons, x, y);
+        for (const btn of this.buttons) {
             if (btn.press && btn === hit) { btn.ripple={x,y,r:0,a:0.52}; this._btnAction(btn.id); }
             btn.press = false;
         }
@@ -740,17 +625,29 @@ class MenuSystem {
         }
         return null;
     }
+
     _btnAction(id) {
-        if (id==='play') { this.menuState='stage_select'; }
-        else if (id==='back') { this.menuState='main'; }
-        else if (id==='start_1')  this._startGame(1);
-        else if (id==='start_6')  this._startGame(6);
-        else if (id==='start_11') this._startGame(11);
-        else if (id==='howtoplay') this._openModal('howToPlayModal');
-        else if (id==='settings')  this._openModal('settingsModal');
+        if (id === 'play') {
+            // Open the HTML map modal instead of canvas stage select
+            openStageMap();
+        } else if (id === 'howtoplay') {
+            this._openModal('howToPlayModal');
+        } else if (id === 'settings') {
+            this._openModal('settingsModal');
+        }
     }
-    _openModal(id)  { const el=document.getElementById(id); el.setAttribute('aria-hidden','false'); el.classList.add('open'); }
-    _closeModal(id) { const el=document.getElementById(id); el.classList.remove('open'); el.setAttribute('aria-hidden','true'); }
+
+    _openModal(id) {
+        const el = document.getElementById(id);
+        el.setAttribute('aria-hidden', 'false');
+        el.classList.add('open');
+    }
+    _closeModal(id) {
+        const el = document.getElementById(id);
+        el.classList.remove('open');
+        el.setAttribute('aria-hidden', 'true');
+    }
+
     _startGame(startStage = 1) {
         if (this.bgm) { this.bgm.pause(); this.bgm.currentTime = 0; }
         this.isGameStarted = true;

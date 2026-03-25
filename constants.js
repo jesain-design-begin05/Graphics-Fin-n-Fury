@@ -50,81 +50,93 @@ const SCORE = {
 
 const WORLD_SCALE = 2.8;
 
-// ── Stage definitions ─────────────────────────────────────────
+/* ================================================================
+   STAGE STRUCTURE — 5 Paths × 3 Stages each = 15 stages total
+================================================================= */
 const STAGE_DEFS = {
-    // ── Ocean Stages 1-5 ──────────────────────────────────────
     1:  { tinyfish: 14, clownfish: 8,  goldfish: 6,  secondfish: 3,  enemies: 2 },
-    2:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 3 },
-    3:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 7,  tertiaryfish: 6, furyfish: 3, enemies: 4 },
-    4:  { tinyfish:  6, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 4, furyfish: 4, enemies: 5 },
-    5:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  tunafish: 4,    furyfish: 3,     enemies: 4, hasBoss: true },
-    // ── Abyss Stages 6-10 ─────────────────────────────────────
-    6:  { tinyfish: 12, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 4 },
-    7:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
+    2:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, furyfish: 2, enemies: 3 },
+    3:  { tinyfish:  6, clownfish: 8,  goldfish: 6,  secondfish: 6,  tertiaryfish: 4, tunafish: 2, furyfish: 3, enemies: 4, hasBoss: true },
+
+    4:  { tinyfish: 12, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 4 },
+    5:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
+    6:  { tinyfish:  5, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 6, tunafish: 4, furyfish: 4, enemies: 5, hasBoss: true },
+
+    7:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
     8:  { tinyfish:  6, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 4, enemies: 6 },
-    9:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 6 },
-    10: { tinyfish:  3, clownfish: 6,  goldfish: 5,  tunafish: 5,    furyfish: 4,     enemies: 5, hasBoss: true },
-    // ── Volcanic Stages 11-15 ─────────────────────────────────
-    11: { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 4, furyfish: 4, enemies: 6 },
-    12: { tinyfish:  6, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
-    13: { tinyfish:  4, clownfish: 6,  goldfish: 5,  secondfish: 8,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 8 },
-    14: { tinyfish:  3, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 8, furyfish: 7, enemies: 8 },
-    15: { tinyfish:  2, clownfish: 4,  goldfish: 3,  tunafish: 6,    furyfish: 6,     enemies: 6, hasBoss: true },
+    9:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 5, enemies: 6, hasBoss: true },
+
+    10: { tinyfish:  8, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 4, enemies: 6 },
+    11: { tinyfish:  5, clownfish: 6,  goldfish: 5,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
+    12: { tinyfish:  3, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 7, hasBoss: true },
+
+    13: { tinyfish:  6, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
+    14: { tinyfish:  4, clownfish: 4,  goldfish: 3,  secondfish: 5,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 8 },
+    15: { tinyfish:  2, clownfish: 4,  goldfish: 3,  tunafish: 6,    furyfish: 7,     enemies: 8, hasBoss: true },
+};
+
+/* ================================================================
+   STAGE_BG_MAP
+   ─────────────────────────────────────────────────────────────
+   Your actual files on disk (inside backgrounds_new/) are:
+     Path_1_kelpforests.png          ← one PNG per path for stages 1-3
+     Path_2_abyssalchasm.png         ← one PNG for stages 4-6
+     Path_3_krakenslair1.png         ← separate PNGs per stage for path 3
+     Path_3_krakenslair2.png
+     Path_3_krakenslair3.png
+     Path_4_sunkenatlantis.png       ← separate PNGs per stage for path 4
+     Path_4_sunkenatlantis2.png
+     Path_4_sunkenatlantis3.png
+     Path_5_bubblingvolcanoes.png    ← one PNG for stages 13-15
+
+   sprites.js builds:  `${folder}/stage${localIdx}_bg.png`
+   But your files are flat PNGs, NOT subfolders with stage_N files.
+
+   FIX: We point `folder` at `backgrounds_new` and set the full
+   filename stem in a new `bgFile` / `fgFile` property.
+   sprites.js must also be updated (see sprites.js fix below).
+================================================================= */
+const STAGE_BG_MAP = {
+    //  stage :  { bg: 'path to bg png',  fg: null (no fg file) }
+    //  Stages 1-3: Path 1 — Kelp Forests (all share the same bg)
+    1:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
+    2:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
+    3:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
+
+    //  Stages 4-6: Path 2 — Abyssal Chasm
+    4:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
+    5:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
+    6:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
+
+    //  Stages 7-9: Path 3 — Kraken's Lair (3 separate images)
+    7:  { bg: 'backgrounds_new/Path_3_krakenslair1.png',   fg: null },
+    8:  { bg: 'backgrounds_new/Path_3_krakenslair2.png',   fg: null },
+    9:  { bg: 'backgrounds_new/Path_3_krakenslair3.png',   fg: null },
+
+    //  Stages 10-12: Path 4 — Sunken Atlantis (3 separate images)
+    10: { bg: 'backgrounds_new/Path_4_sunkenatlantis.png',  fg: null },
+    11: { bg: 'backgrounds_new/Path_4_sunkenatlantis2.png', fg: null },
+    12: { bg: 'backgrounds_new/Path_4_sunkenatlantis3.png', fg: null },
+
+    //  Stages 13-15: Path 5 — Bubbling Volcanoes
+    13: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
+    14: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
+    15: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
 };
 
 // ── Fish definitions ──────────────────────────────────────────
-//
-// SIZE TIER VISUAL HIERARCHY (what player sees on screen):
-//   tinyfish  → very small   (scale 0.22)  — clearly bite-sized
-//   clownfish → small        (scale 0.50)  — noticeably bigger than Fin at start
-//   goldfish  → small        (scale 0.45)  — similar to clownfish
-//   secondfish→ medium       (scale 1.00)  — clearly 2× bigger than Fin at start
-//   tertiary  → medium       (scale 0.88)  — slightly smaller than secondfish
-//   tunafish  → large        (scale 1.45)  — imposing
-//   furyfish  → HUGE poison  (scale 2.10)  — unmistakably dangerous
-//   enemy     → HUGE poison  (scale 1.95)  — large and threatening
-//   boss      → MASSIVE      (scale 2.80)
-//
-// PLAYER START SIZE = 0.42
-// At start Fin is between tinyfish (0.22) and clownfish (0.50):
-//   bigger than tinyfish → can eat them
-//   smaller than clownfish → clownfish eats Fin
-//
-// sizeRank gating:
-//   0 = tinyfish   (playerSize < 0.50, rank 0)
-//   1 = small      (playerSize >= 0.50, rank 1)
-//   2 = medium     (playerSize >= 0.85, rank 2)
-//   3 = large      (playerSize >= 1.25, rank 3)
-//  99 = always dangerous
-//
-// eatsFin: true → fish eats Fin when rank < sizeRank (uses 1 attempt)
-// eatsFin: false → fish just repels Fin (tiny fish never eat Fin back)
-//
-// hitRadius: fixed world-px collision radius (NOT scaled by playerSize)
-// speedMin/Max: patrol px/s — smaller fish are faster
 const FISH_DEF = {
-    // ── Tier 0: VERY SMALL — only edible at the very start ──────
-    tinyfish:   { scale: 0.22, hitRadius: 10, sizeRank: 0, eatsFin: false, speedMin: 150, speedMax: 240 },
-
-    // ── Tier 1: SMALL — edible once Fin grows past tinyfish ─────
-    // These eat Fin back if Fin is still rank-0 (tiny stage)
-    clownfish:  { scale: 0.50, hitRadius: 22, sizeRank: 1, eatsFin: true,  speedMin: 100, speedMax: 175 },
-    goldfish:   { scale: 0.45, hitRadius: 20, sizeRank: 1, eatsFin: true,  speedMin:  90, speedMax: 160 },
-
-    // ── Tier 2: MEDIUM — clearly larger than Fin at start ───────
-    secondfish: { scale: 1.00, hitRadius: 44, sizeRank: 2, eatsFin: true,  speedMin:  55, speedMax: 105 },
-    tertiary:   { scale: 0.88, hitRadius: 38, sizeRank: 2, eatsFin: true,  speedMin:  62, speedMax: 120 },
-
-    // ── Tier 3: LARGE — imposing, slow ──────────────────────────
-    tunafish:   { scale: 1.45, hitRadius: 64, sizeRank: 3, eatsFin: true,  speedMin:  35, speedMax:  75 },
-
-    // ── Tier 99: POISONOUS — massive, always eat Fin ────────────
-    furyfish:   { scale: 2.10, hitRadius: 78, sizeRank: 99, eatsFin: true, speedMin:  45, speedMax:  85 },
-    enemy:      { scale: 1.95, hitRadius: 70, sizeRank: 99, eatsFin: true, speedMin:  35, speedMax:  68 },
-    boss:       { scale: 2.80, hitRadius: 108, sizeRank: 99, eatsFin: true, speedMin:  0,  speedMax:   0 },
+    tinyfish:   { scale: 0.22, hitRadius: 10,  sizeRank: 0,  eatsFin: false, speedMin: 150, speedMax: 240 },
+    clownfish:  { scale: 0.50, hitRadius: 22,  sizeRank: 1,  eatsFin: true,  speedMin: 100, speedMax: 175 },
+    goldfish:   { scale: 0.45, hitRadius: 20,  sizeRank: 1,  eatsFin: true,  speedMin:  90, speedMax: 160 },
+    secondfish: { scale: 1.00, hitRadius: 44,  sizeRank: 2,  eatsFin: true,  speedMin:  55, speedMax: 105 },
+    tertiary:   { scale: 0.88, hitRadius: 38,  sizeRank: 2,  eatsFin: true,  speedMin:  62, speedMax: 120 },
+    tunafish:   { scale: 1.45, hitRadius: 64,  sizeRank: 3,  eatsFin: true,  speedMin:  35, speedMax:  75 },
+    furyfish:   { scale: 2.10, hitRadius: 78,  sizeRank: 99, eatsFin: true,  speedMin:  45, speedMax:  85 },
+    enemy:      { scale: 1.95, hitRadius: 70,  sizeRank: 99, eatsFin: true,  speedMin:  35, speedMax:  68 },
+    boss:       { scale: 2.80, hitRadius: 108, sizeRank: 99, eatsFin: true,  speedMin:   0, speedMax:   0 },
 };
 
-// Legacy FISH_SCALE alias for renderer
 const FISH_SCALE = {
     tinyfish:   FISH_DEF.tinyfish.scale,
     clownfish:  FISH_DEF.clownfish.scale,
@@ -137,11 +149,6 @@ const FISH_SCALE = {
     boss:       FISH_DEF.boss.scale,
 };
 
-// ── Player size → rank ────────────────────────────────────────
-// Rank 0: can only eat tinyfish (rank 0)
-// Rank 1: can eat small fish    (clownfish, goldfish)
-// Rank 2: can eat medium fish   (secondfish, tertiary)
-// Rank 3: can eat large fish    (tunafish)
 function playerSizeRank(playerSize) {
     if (playerSize >= 1.25) return 3;
     if (playerSize >= 0.85) return 2;
@@ -149,45 +156,27 @@ function playerSizeRank(playerSize) {
     return 0;
 }
 
-// ── Player starting size ──────────────────────────────────────
-// 0.42: visually bigger than tinyfish (0.22), smaller than clownfish (0.50)
-// This makes it obvious what Fin can and cannot eat at the start
-const PLAYER_START_SIZE = 0.42;
+const PLAYER_START_SIZE     = 0.42;
+const PLAYER_MAX_SIZE       = 1.85;
+const MAX_ATTEMPTS          = 5;
+const RESPAWN_COUNTDOWN     = 3;
+const RESPAWN_FALL_DURATION = 1.0;
 
-// ── Max player size ───────────────────────────────────────────
-const PLAYER_MAX_SIZE = 1.85;
-
-// ── Attempts ─────────────────────────────────────────────────
-const MAX_ATTEMPTS = 5;
-
-// ── Respawn timing ────────────────────────────────────────────
-const RESPAWN_COUNTDOWN     = 3;    // seconds of countdown screen
-const RESPAWN_FALL_DURATION = 1.0;  // seconds for Fin to fall in from top
-
-// ── Growth per eat ────────────────────────────────────────────
-// Bigger fish = bigger reward. Eating one large fish is very significant.
 const GROW = {
-    TINY:   0.040,   // small but noticeable per tiny fish (need ~2 to unlock small)
-    SMALL:  0.080,   // clear jump per small fish
+    TINY:   0.040,
+    SMALL:  0.080,
     MEDIUM: 0.130,
     LARGE:  0.210,
 };
 
-// ── Player hitbox ─────────────────────────────────────────────
-// Actual radius = min(PLAYER_HIT_BASE * playerSize, 42)
-const PLAYER_HIT_BASE = 22;
-
-// ── Movement speeds (px/s) ────────────────────────────────────
+const PLAYER_HIT_BASE    = 22;
 const PLAYER_SPEED_BASE  = 340;
-
 const FURY_SCREEN_CHASE  = 250;
 const FURY_CLOSEIN_BONUS = 70;
 const FURY_PATROL_SPEED  = 68;
-
 const ENEMY_CHASE_SPEED  = 165;
 const ENEMY_PATROL_SPEED = 50;
 
-// ── Minimap settings ─────────────────────────────────────────
 const MINIMAP = {
     SIZE:       150,
     MARGIN:     14,
@@ -197,5 +186,4 @@ const MINIMAP = {
     DOT_MEDIUM: '#ffe080',
     DOT_LARGE:  '#ff9020',
     DOT_PLAYER: '#00ff88',
-    // No DOT_PEARL — pearls removed from minimap per request
 };
