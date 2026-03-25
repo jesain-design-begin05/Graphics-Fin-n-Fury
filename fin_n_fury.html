@@ -8,28 +8,118 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        /* Only game/menu canvases are full-screen — NOT tutorial canvases */
+        html, body {
+            margin: 0; padding: 0; overflow: hidden;
+            background: #001428;
+            width: 100%; height: 100%;
+        }
+        #menuCanvas, #gameCanvas {
+            position: fixed; top: 0; left: 0;
+            display: block;
+            width: 100vw; height: 100vh;
+        }
+        #gameCanvas { display: none; background: #001428; }
+        #menuCanvas { display: block; }
+    </style>
 </head>
 <body>
-    <!-- Menu canvas — full-screen animated opening -->
     <canvas id="menuCanvas"></canvas>
-
-    <!-- Game canvas — shown after PLAY is pressed -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- How to Play modal -->
+    <!-- ── Tutorial styles ─────────────────────────────────── -->
+    <style>
+    .tut-box{background:linear-gradient(160deg,#0d2e5a 0%,#071e3d 100%);border:2px solid rgba(0,210,255,.7);border-radius:22px;padding:28px 32px 22px;width:min(540px,94vw);box-shadow:0 0 80px rgba(0,180,255,.5),inset 0 1px 0 rgba(255,255,255,.10);}
+    .tut-page{display:none;flex-direction:column;align-items:center;}
+    .tut-page.active{display:flex;}
+    .tut-header{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+    .tut-title{font-family:'Bangers',cursive;font-size:2rem;letter-spacing:.1em;color:#ffd060;text-shadow:0 0 22px rgba(255,180,0,.9),0 0 8px rgba(255,140,0,.7);margin:0;}
+    .tut-step{font-family:'Exo 2',sans-serif;font-size:.85rem;font-weight:700;color:rgba(140,220,255,1.0);letter-spacing:.05em;}
+    .tut-canvas{width:100%;height:auto;border-radius:12px;border:1.5px solid rgba(0,180,255,.25);background:rgba(0,10,30,.7);display:block;}
+    .tut-label{margin:14px 0 4px;font-family:'Bangers',cursive;font-size:1.4rem;letter-spacing:.08em;color:#80e8ff;text-shadow:0 0 16px rgba(0,220,255,.9);}
+    .tut-desc{margin:0 0 18px;font-family:'Exo 2',sans-serif;font-size:.95rem;line-height:1.55;color:#e8f4ff;text-align:center;}
+    .tut-nav{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .tut-dots{display:flex;gap:7px;}
+    .tdot{width:9px;height:9px;border-radius:50%;background:rgba(0,180,255,.28);border:1.5px solid rgba(0,200,255,.4);transition:background .2s;}
+    .tdot.on{background:#00c8ff;border-color:#00c8ff;box-shadow:0 0 6px #00c8ff;}
+    .tut-skip{padding:8px 18px;background:rgba(0,80,150,.35);border:1.5px solid rgba(0,180,255,.35);border-radius:50px;color:rgba(120,200,255,.8);font-family:'Exo 2',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;letter-spacing:.05em;transition:background .2s;}
+    .tut-skip:hover{background:rgba(0,100,180,.55);color:#fff;}
+    .tut-next{padding:10px 26px;background:linear-gradient(135deg,#ff9520,#ff4f00);border:none;border-radius:50px;color:#fff;font-family:'Bangers',cursive;font-size:1.1rem;letter-spacing:.08em;cursor:pointer;box-shadow:0 4px 18px rgba(255,100,20,.45);transition:transform .15s,filter .15s;}
+    .tut-next:hover{transform:translateY(-2px);filter:brightness(1.12);}
+    .tut-next:active{transform:translateY(0);filter:brightness(.95);}
+    .tut-done{background:linear-gradient(135deg,#00c864,#0088ff);box-shadow:0 4px 18px rgba(0,180,100,.45);}
+    </style>
+
+    <!-- How to Play modal — 5-page tutorial -->
     <div id="howToPlayModal" class="modal-overlay" aria-hidden="true">
-        <div class="modal-box">
-            <h2 class="modal-title">HOW TO PLAY</h2>
-            <ul class="modal-list">
-                <li><span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> Move Fin</li>
-                <li><span class="key">SPACE</span> Shoot pearl at Fury (requires pearl power-up)</li>
-                <li><span class="key">EAT</span> smaller fish to grow bigger</li>
-                <li><span class="key">AVOID</span> larger fish &amp; Fury's toxic attacks</li>
-                <li><span class="key">COLLECT</span> pearls from eating fish — random 12% drop</li>
-                <li><span class="key">CLEAR</span> all fish per stage to advance</li>
-                <li><span class="key">BOSS</span> Fury appears every 5 stages — shoot 8 pearls!</li>
-            </ul>
-            <button class="modal-close-btn" id="closeHowToPlay">GOT IT!</button>
+        <div class="tut-box">
+
+            <!-- PAGE 1: MOVE -->
+            <div class="tut-page active" id="tut-1">
+                <div class="tut-header"><h2 class="tut-title">HOW TO PLAY</h2><span class="tut-step">1 / 5</span></div>
+                <canvas class="tut-canvas" id="tutC1" width="480" height="180"></canvas>
+                <p class="tut-label">🕹️ MOVE YOUR FISH</p>
+                <p class="tut-desc">Use <span class="key">W A S D</span> or <span class="key">↑ ← ↓ →</span> to swim. In mouse mode, move the cursor and hold <span class="key">CLICK</span> to dash!</p>
+                <div class="tut-nav">
+                    <button class="tut-skip" id="closeHowToPlay">SKIP</button>
+                    <div class="tut-dots"><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+                    <button class="tut-next" onclick="tutGo(2)">NEXT ›</button>
+                </div>
+            </div>
+
+            <!-- PAGE 2: EAT -->
+            <div class="tut-page" id="tut-2">
+                <div class="tut-header"><h2 class="tut-title">HOW TO PLAY</h2><span class="tut-step">2 / 5</span></div>
+                <canvas class="tut-canvas" id="tutC2" width="480" height="180"></canvas>
+                <p class="tut-label">🐟 EAT SMALLER FISH</p>
+                <p class="tut-desc">Swim into fish <strong>smaller than you</strong> to eat them and grow bigger. Bigger fish = more points &amp; more power!</p>
+                <div class="tut-nav">
+                    <button class="tut-skip" onclick="tutGo(1)">‹ BACK</button>
+                    <div class="tut-dots"><span class="tdot"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+                    <button class="tut-next" onclick="tutGo(3)">NEXT ›</button>
+                </div>
+            </div>
+
+            <!-- PAGE 3: AVOID -->
+            <div class="tut-page" id="tut-3">
+                <div class="tut-header"><h2 class="tut-title">HOW TO PLAY</h2><span class="tut-step">3 / 5</span></div>
+                <canvas class="tut-canvas" id="tutC3" width="480" height="180"></canvas>
+                <p class="tut-label">⚠️ AVOID FURY FISH</p>
+                <p class="tut-desc"><span style="color:#ff6060">Fury fish chase and eat you!</span> You have <strong>5 attempts</strong>. Dodge them or shoot with pearls!</p>
+                <div class="tut-nav">
+                    <button class="tut-skip" onclick="tutGo(2)">‹ BACK</button>
+                    <div class="tut-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span></div>
+                    <button class="tut-next" onclick="tutGo(4)">NEXT ›</button>
+                </div>
+            </div>
+
+            <!-- PAGE 4: PEARL -->
+            <div class="tut-page" id="tut-4">
+                <div class="tut-header"><h2 class="tut-title">HOW TO PLAY</h2><span class="tut-step">4 / 5</span></div>
+                <canvas class="tut-canvas" id="tutC4" width="480" height="180"></canvas>
+                <p class="tut-label">🦪 COLLECT PEARLS TO SHOOT</p>
+                <p class="tut-desc">Find clams on the sea floor and collect the pearl. Then press <span class="key">SPACE</span> or <span class="key">CLICK</span> to shoot enemies!</p>
+                <div class="tut-nav">
+                    <button class="tut-skip" onclick="tutGo(3)">‹ BACK</button>
+                    <div class="tut-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot on"></span><span class="tdot"></span></div>
+                    <button class="tut-next" onclick="tutGo(5)">NEXT ›</button>
+                </div>
+            </div>
+
+            <!-- PAGE 5: WIN -->
+            <div class="tut-page" id="tut-5">
+                <div class="tut-header"><h2 class="tut-title">HOW TO PLAY</h2><span class="tut-step">5 / 5</span></div>
+                <canvas class="tut-canvas" id="tutC5" width="480" height="180"></canvas>
+                <p class="tut-label">🏆 CLEAR ALL 5 STAGES!</p>
+                <p class="tut-desc">Eat all fish to clear each stage. Survive all 5 stages and defeat the <span style="color:#ff4040">👹 BOSS</span> on stage 5 to win!</p>
+                <div class="tut-nav">
+                    <button class="tut-skip" onclick="tutGo(4)">‹ BACK</button>
+                    <div class="tut-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot on"></span></div>
+                    <button class="tut-next tut-done" id="closeHowToPlayDone">LET'S GO! 🐟</button>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -48,6 +138,13 @@
                 <span id="sfxVolVal">90%</span>
             </div>
             <div class="settings-row">
+                <label>Control Mode</label>
+                <select id="controlMode">
+                    <option value="keyboard">Keyboard (WASD)</option>
+                    <option value="mouse">Mouse Cursor</option>
+                </select>
+            </div>
+            <div class="settings-row">
                 <label>Fullscreen</label>
                 <button class="toggle-btn" id="fullscreenToggle">OFF</button>
             </div>
@@ -55,11 +152,252 @@
         </div>
     </div>
 
-    <!--
-        LOAD ORDER: game.js MUST come before fin_n_fury.js
-        game.js defines the Game class (used by MenuSystem._startGame)
-    -->
+    <!-- Tutorial script — page navigation + canvas animations -->
+    <script>
+    let _tutTimers = {};
+
+    function tutGo(n) {
+        Object.keys(_tutTimers).forEach(k => { cancelAnimationFrame(_tutTimers[k]); delete _tutTimers[k]; });
+        document.querySelectorAll('.tut-page').forEach(p => p.classList.remove('active'));
+        const page = document.getElementById('tut-' + n);
+        if (page) { page.classList.add('active'); _tutDraw(n); }
+    }
+
+    function _tutClose() {
+        Object.keys(_tutTimers).forEach(k => { cancelAnimationFrame(_tutTimers[k]); delete _tutTimers[k]; });
+        document.querySelectorAll('.tut-page').forEach(p => p.classList.remove('active'));
+        document.getElementById('tut-1').classList.add('active');
+        const m = document.getElementById('howToPlayModal');
+        m.classList.remove('open'); m.setAttribute('aria-hidden','true');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('closeHowToPlay').addEventListener('click', _tutClose);
+        document.getElementById('closeHowToPlayDone').addEventListener('click', _tutClose);
+
+        // Watch for modal opening — start page 1 animation when it becomes visible
+        const _modal = document.getElementById('howToPlayModal');
+        new MutationObserver(() => {
+            if (_modal.classList.contains('open')) {
+                // Small delay so CSS transition has started and canvas is visible
+                setTimeout(() => tutGo(1), 80);
+            }
+        }).observe(_modal, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    /* ── Per-page animated canvas renderers ─────────────────── */
+    function _tutDraw(page) {
+        const cvs = document.getElementById('tutC' + page);
+        if (!cvs) return;
+        const ctx = cvs.getContext('2d'), W = cvs.width, H = cvs.height;
+        let t = 0;
+
+        function bg() {
+            const g = ctx.createLinearGradient(0,0,0,H);
+            g.addColorStop(0,'#001428'); g.addColorStop(1,'#003060');
+            ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+            ctx.fillStyle='rgba(0,35,70,.7)'; ctx.fillRect(0,H-28,W,28);
+        }
+
+        function key(label,x,y) {
+            ctx.save(); ctx.font="bold 12px 'Exo 2',sans-serif";
+            const kw=ctx.measureText(label).width+18, kh=24;
+            ctx.fillStyle='rgba(0,120,200,.28)'; ctx.strokeStyle='rgba(0,200,255,.65)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.roundRect(x-kw/2,y-kh/2,kw,kh,6); ctx.fill(); ctx.stroke();
+            ctx.fillStyle='#7de8ff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(label,x,y); ctx.restore();
+        }
+
+        // Real fish images — black backgrounds removed via screen blend
+        const _finImg  = Object.assign(new Image(), { src: 'fishh.png' });
+        const _furyImg = Object.assign(new Image(), { src: 'fish3_1.png' });
+
+        // fishh.png faces LEFT naturally; facingLeft=false flips it to face right
+        function drawPlayer(cx, cy, h, facingLeft) {
+            ctx.save(); ctx.translate(cx, cy);
+            if (!facingLeft) ctx.scale(-1, 1);
+            if (_finImg.complete && _finImg.naturalWidth > 0) {
+                const sc = h / _finImg.naturalHeight, w = _finImg.naturalWidth * sc;
+                ctx.globalCompositeOperation = 'screen';
+                ctx.drawImage(_finImg, -w/2, -h/2, w, h);
+            } else {
+                ctx.fillStyle='#ff9900'; ctx.beginPath(); ctx.ellipse(0,0,h*.55,h*.4,0,0,Math.PI*2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // fish3_1.png faces LEFT naturally; facingLeft=false flips it right
+        function drawEnemy(cx, cy, h, facingLeft) {
+            ctx.save(); ctx.translate(cx, cy);
+            if (!facingLeft) ctx.scale(-1, 1);
+            if (_furyImg.complete && _furyImg.naturalWidth > 0) {
+                const sc = h / _furyImg.naturalHeight, w = _furyImg.naturalWidth * sc;
+                ctx.globalCompositeOperation = 'screen';
+                ctx.drawImage(_furyImg, -w/2, -h/2, w, h);
+            } else {
+                ctx.fillStyle='#ff3030'; ctx.beginPath(); ctx.ellipse(0,0,h*.6,h*.42,0,0,Math.PI*2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Small bait fish — drawn shapes (intentionally tiny)
+        function fish(cx,cy,sz,col,facingLeft,bob) {
+            ctx.save(); ctx.translate(cx,cy+(bob||0));
+            if(facingLeft) ctx.scale(-1,1);
+            ctx.fillStyle=col;
+            ctx.beginPath(); ctx.ellipse(0,0,sz,sz*0.5,0,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(sz*.8,0); ctx.lineTo(sz*1.4,-sz*.45); ctx.lineTo(sz*1.4,sz*.45); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(-sz*.38,-sz*.1,sz*.14,0,Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+
+        function heart(x,y,filled) {
+            ctx.save(); ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.globalAlpha=filled?1:.22; ctx.shadowColor='#ff2020'; ctx.shadowBlur=filled?10:0;
+            ctx.fillStyle='#ff4040'; ctx.fillText('❤',x,y); ctx.restore();
+        }
+
+        // ── Page 1: Movement ────────────────────────────────────
+        function p1() {
+            bg();
+            const fx=80+Math.sin(t*.038)*150, fy=H/2+Math.sin(t*.052)*45;
+            drawPlayer(fx, fy, 54, Math.cos(t*.038)<0);
+            ctx.save(); ctx.strokeStyle='rgba(0,200,255,.3)'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+            ctx.beginPath(); ctx.arc(fx,fy,38,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+            const kx=W-95,ky=H/2-8;
+            key('W',kx,ky-34); key('A',kx-30,ky); key('S',kx,ky); key('D',kx+30,ky);
+            ctx.save(); ctx.fillStyle='rgba(150,220,255,.5)'; ctx.font="10px 'Exo 2',sans-serif"; ctx.textAlign='center';
+            ctx.fillText('or ↑ ← ↓ →',kx,ky+30); ctx.restore();
+        }
+
+        // ── Page 2: Eat ─────────────────────────────────────────
+        function p2() {
+            bg();
+            const px=60+(t*.6)%(W-80);
+            const bait=[{bx:W*.55,by:H*.28,sz:9,col:'#ff9944'},{bx:W*.70,by:H*.62,sz:11,col:'#44ccff'},{bx:W*.62,by:H*.48,sz:7,col:'#ff6699'},{bx:W*.82,by:H*.38,sz:13,col:'#88ff88'}];
+            bait.forEach((f,i)=>{
+                const bfx=f.bx-(t*.15)%60;
+                if(Math.hypot(px-bfx,H/2-f.by)>22*.5+f.sz) fish(bfx,f.by,f.sz,f.col,true,Math.sin(t*.07+i)*3);
+            });
+            drawPlayer(px, H/2, 54, false);
+            ctx.save(); ctx.globalAlpha=.4+Math.sin(t*.06)*.4; ctx.fillStyle='#ffd060';
+            ctx.font="bold 18px 'Bangers',cursive"; ctx.textAlign='center'; ctx.shadowColor='#ffd060'; ctx.shadowBlur=10;
+            ctx.fillText('+15',px+38,H/2-36); ctx.restore();
+        }
+
+        // ── Page 3: Avoid ───────────────────────────────────────
+        function p3() {
+            bg();
+            const px=80+Math.sin(t*.04)*50, py=H/2+Math.cos(t*.035)*28;
+            const ex=W*.68+Math.cos(t*.04)*18, ey=H/2+Math.sin(t*.04)*14;
+            const dist=Math.hypot(px-ex,py-ey);
+            ctx.save(); ctx.strokeStyle=`rgba(255,60,60,${.25+Math.sin(t*.08)*.15})`; ctx.lineWidth=2.5;
+            ctx.beginPath(); ctx.arc(ex,ey,52+Math.sin(t*.08)*5,0,Math.PI*2); ctx.stroke(); ctx.restore();
+            ctx.save(); ctx.strokeStyle=`rgba(255,80,60,${Math.max(0,.5-dist/180)})`; ctx.lineWidth=1.5; ctx.setLineDash([5,5]);
+            ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(px,py); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+            drawPlayer(px, py, 50, true);
+            drawEnemy(ex, ey, 64, true);
+            ctx.save(); ctx.fillStyle=`rgba(255,70,70,${.5+Math.sin(t*.1)*.5})`; ctx.font="bold 24px 'Bangers',cursive"; ctx.textAlign='center';
+            ctx.shadowColor='#ff2020'; ctx.shadowBlur=12; ctx.fillText('!!',ex,ey-52); ctx.restore();
+            for(let i=0;i<5;i++) heart(22+i*26,22,i<3);
+            ctx.save(); ctx.fillStyle='rgba(200,200,255,.5)'; ctx.font="10px 'Exo 2',sans-serif"; ctx.textAlign='left';
+            ctx.fillText('ATTEMPTS',10,40); ctx.restore();
+            if(dist<90){ctx.save();ctx.globalAlpha=.15+Math.sin(t*.25)*.1;ctx.fillStyle='#ff0000';ctx.fillRect(0,0,W,H);ctx.restore();}
+        }
+
+        // ── Page 4: Pearl / Shoot ───────────────────────────────
+        function p4() {
+            bg();
+            const lt=t%270, phase=lt<90?0:lt<180?1:2, pt=lt%90;
+            const cx2=W/2, cy2=H-34;
+            // Clam
+            ctx.save();
+            const sg=ctx.createLinearGradient(cx2,cy2,cx2,cy2+16); sg.addColorStop(0,'#9a6840'); sg.addColorStop(1,'#5a3218');
+            ctx.fillStyle=sg; ctx.beginPath(); ctx.ellipse(cx2,cy2+8,28,13,0,0,Math.PI*2); ctx.fill();
+            if(phase>=1){
+                const ug=ctx.createLinearGradient(cx2,cy2-20,cx2,cy2); ug.addColorStop(0,'#c08858'); ug.addColorStop(1,'#7a4828');
+                ctx.fillStyle=ug; ctx.save(); ctx.translate(cx2,cy2); ctx.rotate(-.55);
+                ctx.beginPath(); ctx.ellipse(0,-8,26,10,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+                const pr=ctx.createRadialGradient(cx2-3,cy2-14,1,cx2,cy2-12,10); pr.addColorStop(0,'#fffaee'); pr.addColorStop(1,'#c09878');
+                ctx.fillStyle=pr; ctx.beginPath(); ctx.arc(cx2,cy2-12,10,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle=`rgba(0,200,255,${.6+Math.sin(t*.1)*.35})`; ctx.font="bold 10px 'Exo 2',sans-serif"; ctx.textAlign='center';
+                ctx.fillText('COLLECT!',cx2,cy2-30);
+            } else {
+                const ug=ctx.createLinearGradient(cx2,cy2-8,cx2,cy2+8); ug.addColorStop(0,'#b07848'); ug.addColorStop(1,'#704020');
+                ctx.fillStyle=ug; ctx.beginPath(); ctx.ellipse(cx2,cy2-2,27,10,0,0,Math.PI*2); ctx.fill();
+            }
+            ctx.fillStyle='#d4a0b0'; ctx.beginPath(); ctx.ellipse(cx2,cy2+2,27,6,0,0,Math.PI*2); ctx.fill();
+            ctx.restore();
+            let px2,py2;
+            if(phase===0){px2=60+(pt/90)*(cx2-80);py2=H*.42;}
+            else if(phase===1){px2=cx2+Math.sin(pt*.12)*12;py2=H*.35;}
+            else{px2=cx2+30+(pt/90)*(W*.34);py2=H*.38;}
+            if(phase>=1){ctx.save();ctx.globalAlpha=.5+Math.sin(t*.1)*.4;ctx.strokeStyle='#00c8ff';ctx.lineWidth=2;ctx.shadowColor='#00c8ff';ctx.shadowBlur=14;ctx.beginPath();ctx.arc(px2,py2,30,0,Math.PI*2);ctx.stroke();ctx.restore();}
+            drawPlayer(px2, py2, 50, false);
+            if(phase===2){
+                const prog=pt/90, projX=px2+28+prog*(W-px2-55);
+                if(projX<W-8){ctx.save();ctx.fillStyle='rgba(0,210,255,.92)';ctx.shadowColor='#00c8ff';ctx.shadowBlur=14;ctx.beginPath();ctx.ellipse(projX,py2,13,6,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+                key('SPACE',W*.78,H*.2);
+            }
+            const lbls=['Swim to the clam ›','✓ Pearl collected! Press SPACE!','🔫 Shooting →'];
+            ctx.save();ctx.fillStyle=`rgba(0,200,255,${.55+Math.sin(t*.06)*.35})`;ctx.font="bold 12px 'Exo 2',sans-serif";ctx.textAlign='center';ctx.fillText(lbls[phase]||'',W/2,H-82);ctx.restore();
+        }
+
+        // ── Page 5: Boss ────────────────────────────────────────
+        function p5() {
+            bg();
+            const phase=Math.floor(t/120)%4;
+            const bx=W*.72+Math.sin(t*.04)*16, by=H*.42+Math.sin(t*.03)*10;
+            const playerX=W*.25, playerY=H*.45;
+            if(phase<3){
+                ctx.save();
+                if(phase===2){ctx.shadowColor='#ff0000';ctx.shadowBlur=28;ctx.globalAlpha=.5+Math.sin(t*.3)*.5;}
+                drawEnemy(bx, by, 80, true); ctx.restore();
+                const hp=[1,.6,.2][phase]||1;
+                ctx.save();ctx.fillStyle='rgba(0,0,0,.5)';ctx.beginPath();ctx.roundRect(bx-50,by-55,100,12,4);ctx.fill();
+                const hg=ctx.createLinearGradient(bx-48,0,bx+48,0);hg.addColorStop(0,'#ff2020');hg.addColorStop(1,'#ff8020');
+                ctx.fillStyle=hg;ctx.beginPath();ctx.roundRect(bx-48,by-53,96*hp,8,3);ctx.fill();
+                ctx.fillStyle='rgba(255,180,150,.8)';ctx.font="bold 9px 'Exo 2',sans-serif";ctx.textAlign='center';ctx.fillText('👹 BOSS HP',bx,by-60);ctx.restore();
+            }
+            drawPlayer(playerX, playerY, 54, false);
+            if(phase===1||phase===2){
+                for(let s=0;s<3;s++){
+                    const prog=((t+s*30)%90)/90;
+                    const sx=playerX+28+(bx-playerX-55)*prog, sy=playerY+(by-playerY)*prog;
+                    ctx.save();ctx.globalAlpha=1-prog*.3;ctx.fillStyle='rgba(0,210,255,.9)';ctx.shadowColor='#00c8ff';ctx.shadowBlur=12;
+                    ctx.beginPath();ctx.ellipse(sx,sy,10,5,0,0,Math.PI*2);ctx.fill();ctx.restore();
+                }
+            }
+            if(phase===3){
+                const ep=(t%120)/120;
+                for(let p=0;p<12;p++){const ang=(p/12)*Math.PI*2,d2=40+ep*80;ctx.save();ctx.globalAlpha=Math.max(0,1-ep*1.5);ctx.fillStyle=p%3===0?'#ff4400':p%3===1?'#ffaa00':'#ffee00';ctx.shadowColor='#ff6600';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(bx+Math.cos(ang)*d2,by+Math.sin(ang)*d2,5-ep*3,0,Math.PI*2);ctx.fill();ctx.restore();}
+                ctx.save();ctx.globalAlpha=Math.min(1,ep*3);ctx.font="bold 28px 'Bangers',cursive";ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffd060';ctx.shadowColor='#ffd060';ctx.shadowBlur=20;ctx.fillText('🏆 YOU WIN! 🏆',W/2,H*.38);ctx.restore();
+            }
+            const lbls=['👹 Boss patrols Stage 5…','🔫 Shoot the boss with pearls!','💥 Boss taking damage!','🎉 Boss defeated — Victory!'];
+            ctx.save();ctx.fillStyle='rgba(200,230,255,.75)';ctx.font="bold 11px 'Exo 2',sans-serif";ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(lbls[phase],W/2,H-8);ctx.restore();
+        }
+
+        const renderers = { 1:p1, 2:p2, 3:p3, 4:p4, 5:p5 };
+        function loop() {
+            if(renderers[page]) renderers[page]();
+            t++;
+            _tutTimers[page] = requestAnimationFrame(loop);
+        }
+        loop();
+    }
+    </script>
+
+    <!-- Game scripts — load order matters! -->
+    <script src="constants.js"></script>
+    <script src="sprites.js"></script>
+    <script src="audio.js"></script>
+    <script src="camera.js"></script>
+    <script src="input.js"></script>
+    <script src="entities.js"></script>
+    <script src="collisions.js"></script>
+    <script src="renderer.js"></script>
     <script src="game.js"></script>
-    <script src="fin_n_fury.js"></script>
+    <script src="menu.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
