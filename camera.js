@@ -39,21 +39,38 @@ function updateCamera(game, dt) {
     const vW = game.canvas.width  / game.dpr;
     const vH = game.canvas.height / game.dpr;
 
-    // ── Dynamic zoom based on player size ─────────────────────
+    // ── Dynamic zoom based on player size + boss phase ────────
     // playerSize range: 0.42 (start) → 1.85 (max)
     // zoom range:       1.00 (tiny)  → 0.65 (large)
     // Small Fin → zoom = 1.0 (normal, world fills screen)
     // Large Fin → zoom = 0.65 (zoomed out, you see more of the world)
+    // Boss intro → 0.55 (extra zoom out to see boss clearly)
+    // After boss defeat → smooth zoom back in
     const SIZE_MIN  = 0.42;
     const SIZE_MAX  = 1.85;
     const ZOOM_BIG  = 1.00;   // zoom when Fin is tiny
     const ZOOM_SMALL = 0.65;  // zoom when Fin is at max size
-    const t = Math.max(0, Math.min(1, (game.playerSize - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)));
-    const targetZoom = ZOOM_BIG + (ZOOM_SMALL - ZOOM_BIG) * t;
+    const ZOOM_BOSS = 0.55;   // zoom when boss appears (zoom out to see arena)
+    
+    let targetZoom;
+    
+    // Check if boss is present and in intro phase (should zoom out)
+    if (game.boss && !game.bossDefeated && game.boss.bossIntroPhase) {
+        // During boss intro, zoom out significantly
+        targetZoom = ZOOM_BOSS;
+    } else if (game.boss && !game.bossDefeated) {
+        // During active boss fight, maintain zoom out
+        targetZoom = ZOOM_BOSS;
+    } else {
+        // Normal gameplay: zoom based on player size
+        const t = Math.max(0, Math.min(1, (game.playerSize - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)));
+        targetZoom = ZOOM_BIG + (ZOOM_SMALL - ZOOM_BIG) * t;
+    }
 
-    // Smooth zoom transition
+    // Smooth zoom transition with faster response for boss
     if (!game.camZoom) game.camZoom = ZOOM_BIG;
-    game.camZoom += (targetZoom - game.camZoom) * Math.min(1, 3 * dt);
+    const zoomSpeed = (game.boss && !game.bossDefeated) ? 2.5 : 3.0;
+    game.camZoom += (targetZoom - game.camZoom) * Math.min(1, zoomSpeed * dt);
 
     // ── Camera follow ─────────────────────────────────────────
     // The zoom is applied as a canvas scale in renderer.js.

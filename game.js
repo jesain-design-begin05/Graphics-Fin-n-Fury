@@ -61,9 +61,12 @@ class GameSystem {
         this.floatingTexts  = [];
         this.particles      = [];
         this.bubbleTexts    = [];   // ← eat-bubble messages
+        this.decoItems      = [];   // Decorative items in world
 
         this.boss         = null;
         this.bossDefeated = false;
+        this.bossVisible  = false;    // Boss only appears when all edible fish eaten
+        this.mantaRay     = null;     // Background manta ray
 
         // Player
         this.fishX          = 0;
@@ -98,6 +101,10 @@ class GameSystem {
         // Camera
         this.cam   = { x: 0, y: 0 };
         this.world = { w: 0, h: 0 };
+        this.camZoom = 1.0;  // Initialize camera zoom
+
+        // Pause state
+        this.isPaused = false;
 
         // Vertical offset applied to Fin's start Y and respawn target Y
         // so the play area sits lower inside the visible map circle.
@@ -149,6 +156,7 @@ class GameSystem {
         this.damageCooldown  = 0;
         this.lastEatTime     = -100;
         this.fishVx          = 0;
+        this.bossVisible     = false;    // Reset boss visibility flag for new stage
 
         spawnStageEntities(this);
         spawnParticles(this);
@@ -259,6 +267,14 @@ class GameSystem {
 
         checkCollisions(this);
 
+        // Spawn boss when all edible fish are eaten (if stage has boss)
+        const stageDef = STAGE_DEFS[this.stage];
+        if (countEdible(this) === 0 && !this.bossVisible && stageDef && stageDef.hasBoss) {
+            spawnBoss(this);
+            this.bossVisible = true;
+        }
+
+        // Stage clears when all edible fish eaten AND (no boss OR boss defeated)
         const bossOk = !this.boss || this.bossDefeated;
         if (countEdible(this) === 0 && bossOk && !this.stageClear) {
             this.stageClear      = true;
@@ -395,5 +411,17 @@ class GameSystem {
         this.bubbleTexts = [];
         if (this.bgm) { this.bgm.currentTime = 0; this.bgm.play().catch(()=>{}); }
         this._initStage();
+    }
+
+    _togglePause() {
+        // Don't allow pausing if the game is already over or in a special state
+        if (this.gameOver || this.stageClear || this.isEaten || this.isRespawning) return;
+        
+        this.isPaused = !this.isPaused;
+        
+        if (this.bgm) {
+            if (this.isPaused) this.bgm.pause();
+            else this.bgm.play().catch(() => {});
+        }
     }
 }

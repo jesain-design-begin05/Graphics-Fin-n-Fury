@@ -137,3 +137,23 @@ function applyKeyboardMovement(game, dt) {
 
     if (moved) game.fishMoving = true;
 }
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        game._togglePause();
+        return;
+    }
+});
+window.addEventListener('blur', () => { 
+    game.keys = {}; 
+    game.fishAttacking = false; 
+    if (!game.isPaused && !game.gameOver && !game.stageClear) 
+        game._togglePause();
+});
+
+if (game.escButtonRect) {
+    const b = game.escButtonRect;
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        game._togglePause();
+        return;
+    }
+}

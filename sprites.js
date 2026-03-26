@@ -47,6 +47,15 @@ function initSpriteContainers(game) {
     game.gameOverSprite   = null;
     game.projectileSprites = {};
     game.bossSprite       = {};
+    
+    // ── Abyss Monster Fish boss sprites ───────────────────────
+    // Load individual frames for rest (mouth closed) and swim (mouth open)
+    game.abyssBossRestLeft     = {};   // Mouth closed - left facing
+    game.abyssBossRestRight    = {};   // Mouth closed - right facing
+    game.abyssBossSwimLeft     = {};   // Mouth open - left facing
+    game.abyssBossSwimRight    = {};   // Mouth open - right facing
+    game.abyssBossAttackLeft   = {};   // Attack/blast - left facing
+    game.abyssBossAttackRight  = {};   // Attack/blast - right facing
 
     // ── Decorative world assets ───────────────────────────────
     game.decoBoat        = null;
@@ -110,12 +119,17 @@ function loadSprites(game) {
     // Boss image — bigguy.jpg
     game.bossImg = img();
     game.bossImg.src = 'bigguy.jpg';
-
-    // Boss re-uses furyfish swim + attack sprites
-    game.bossSprite.left    = game.furyfishSwimLeft;
-    game.bossSprite.right   = game.furyfishSwimRight;
-    game.bossSprite.attackL = game.furyfishAttackLeft;
-    game.bossSprite.attackR = game.furyfishAttackRight;
+    
+    // ── Abyss Monster Fish boss sprite frames ──────────────────
+    // Load individual frames (6 frames each) for each animation type
+    for (let f = 1; f <= 6; f++) {
+        game.abyssBossRestLeft[f]   = img(); game.abyssBossRestLeft[f].src   = `fish_sprites/abyss/abyss_monster_fish-rest-left-${f}.png`;
+        game.abyssBossRestRight[f]  = img(); game.abyssBossRestRight[f].src  = `fish_sprites/abyss/abyss_monster_fish-rest-right-${f}.png`;
+        game.abyssBossSwimLeft[f]   = img(); game.abyssBossSwimLeft[f].src   = `fish_sprites/abyss/abyss_monster_fish-swim-left-${f}.png`;
+        game.abyssBossSwimRight[f]  = img(); game.abyssBossSwimRight[f].src  = `fish_sprites/abyss/abyss_monster_fish-swim-right-${f}.png`;
+        game.abyssBossAttackLeft[f]  = img(); game.abyssBossAttackLeft[f].src  = `fish_sprites/abyss/abyss_monster_fish-attack-left-${f}.png`;
+        game.abyssBossAttackRight[f] = img(); game.abyssBossAttackRight[f].src = `fish_sprites/abyss/abyss_monster_fish-attack-right-${f}.png`;
+    }
 
     // ── Collectibles ──────────────────────────────────────────
     game.clamSprite.closed = img(); game.clamSprite.closed.src = 'collectibles/clam_closed.png';

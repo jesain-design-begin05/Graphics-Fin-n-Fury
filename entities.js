@@ -85,19 +85,58 @@ function spawnStageEntities(game) {
     }
 
     spawnDecorations(game);
-
-    if (def.hasBoss) {
-        game.boss = {
-            type: 'boss',
-            x: W * 0.75, y: H * 0.40, vx: -60, vy: 0,
-            hp: 12, maxHp: 12, chargeTimer: 0,
-            chargeCooldown: 4, chargeDuration: 0.7,
-            isCharging: false, chargeVx: 0, chargeVy: 0,
-            frameOffset: 0, bobOffset: Math.random() * Math.PI * 2,
-            hitFlash: 0, facingLeft: true,
-        };
-    }
 }
+
+// ────────────────────────────────────────────────────────────────
+//  Boss spawning — triggered when all edible fish are eaten
+// ────────────────────────────────────────────────────────────────
+
+function spawnBoss(game) {
+    // Safety checks
+    if (!game || !game.world) return;
+    if (game.boss) return;  // Boss already exists
+    
+    const stageDef = STAGE_DEFS[game.stage];
+    if (!stageDef || !stageDef.hasBoss) return;  // Stage doesn't have a boss
+    
+    const W = game.world.w;
+    const H = game.world.h;
+    
+    if (W <= 0 || H <= 0) return;  // Invalid world dimensions
+    
+    game.boss = {
+        type: 'abyss_monster_fish',
+        x: W * 0.75, y: H * 0.40, vx: 0, vy: 0,
+        hp: 15, maxHp: 15, 
+        
+        // ── Movement parameters ──────────────────────────
+        moveTargetX: W * 0.75, moveTargetY: H * 0.40,  // Wanders to random positions
+        moveTimer: 0,
+        moveChangeInterval: 2.5,  // Changes movement target every 2.5 seconds
+        
+        // ── Attack parameters ────────────────────────────
+        attackTimer: 0,
+        attackInterval: 5.0,  // Attacks every ~5 seconds
+        isAttacking: false,
+        attackDuration: 0.8,
+        mouthOpenDuration: 0.6,  // Duration of mouth opening/closing animation
+        mouthOpenTimer: 0,
+        mouthOpenAmount: 0,
+        
+        // ── Animation parameters ─────────────────────────
+        frameOffset: 0, 
+        bobOffset: Math.random() * Math.PI * 2,
+        
+        hitFlash: 0, 
+        facingLeft: true,
+        bossIntroTimer: 2.0,  // Time to intro the boss when first spawned
+        bossIntroPhase: true,  // Track if still in intro phase
+    };
+    
+    spawnDecorations(game);
+}
+
+// ────────────────────────────────────────────────────────────────
 
 function spawnParticles(game) {
     if (game.particles.length > 0) return;
@@ -197,35 +236,71 @@ function updateBoss(game, dt) {
     const b = game.boss;
     const W = game.world.w;
     const H = game.world.h;
+    
     if (b.hitFlash > 0) b.hitFlash -= dt;
-    b.chargeTimer += dt;
-    if (!b.isCharging) {
-        const dx   = game.fishX - b.x;
-        const dy   = game.fishY - b.y;
-        const dist = Math.hypot(dx, dy);
-        b.vx += (dx / dist) * 50 * dt;
-        b.vy += (dy / dist) * 50 * dt;
-        b.vx *= 0.96; b.vy *= 0.96;
-        const mag = Math.hypot(b.vx, b.vy);
-        if (mag > 95) { b.vx = b.vx / mag * 95; b.vy = b.vy / mag * 95; }
-        if (b.chargeTimer >= b.chargeCooldown) {
-            b.isCharging = true; b.chargeTimer = 0;
-            const ang = Math.atan2(dy, dx);
-            b.chargeVx = Math.cos(ang) * 460;
-            b.chargeVy = Math.sin(ang) * 460;
-            game._spawnFloatingText(b.x, b.y - 80, '⚡ CHARGE!', '#ff4444');
+    
+    // ── Boss intro phase (zoom out effect, no movement) ──────────
+    if (b.bossIntroPhase) {
+        b.bossIntroTimer -= dt;
+        if (b.bossIntroTimer <= 0) {
+            b.bossIntroPhase = false;
         }
+        // No movement during intro
+        return;
+    }
+    
+    // ── Free movement: wanders to random positions ─────────────
+    b.moveTimer += dt;
+    if (b.moveTimer >= b.moveChangeInterval) {
+        // Pick new random target
+        b.moveTargetX = 150 + Math.random() * (W - 300);
+        b.moveTargetY = 150 + Math.random() * (H - 300);
+        b.moveTimer = 0;
+    }
+    
+    // Move toward target smoothly
+    const dx = b.moveTargetX - b.x;
+    const dy = b.moveTargetY - b.y;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist > 20) {
+        const speed = 80;  // Free movement at moderate speed
+        b.vx = (dx / dist) * speed;
+        b.vy = (dy / dist) * speed;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
     } else {
-        b.x += b.chargeVx * dt; b.y += b.chargeVy * dt;
-        if (b.chargeTimer >= b.chargeDuration) {
-            b.isCharging = false; b.chargeTimer = 0;
-            b.vx = b.chargeVx * 0.1; b.vy = b.chargeVy * 0.1;
+        b.vx *= 0.9;
+        b.vy *= 0.9;
+    }
+    
+    b.facingLeft = b.vx < 0;
+    b.x = Math.max(80, Math.min(W - 80, b.x));
+    b.y = Math.max(80, Math.min(H - 80, b.y));
+    
+    // ── Attack cycle (every ~5 seconds, attack towards player) ───
+    b.attackTimer += dt;
+    if (b.attackTimer >= b.attackInterval) {
+        b.isAttacking = true;
+        b.attackTimer = 0;
+        b.mouthOpenTimer = 0;  // Start mouth animation
+    }
+    
+    if (b.isAttacking) {
+        // Mouth opening animation
+        b.mouthOpenTimer += dt;
+        if (b.mouthOpenTimer < b.mouthOpenDuration / 2) {
+            // Open mouth
+            b.mouthOpenAmount = (b.mouthOpenTimer / (b.mouthOpenDuration / 2));
+        } else if (b.mouthOpenTimer < b.mouthOpenDuration) {
+            // Close mouth
+            b.mouthOpenAmount = 1 - ((b.mouthOpenTimer - b.mouthOpenDuration / 2) / (b.mouthOpenDuration / 2));
+        } else {
+            // Attack done
+            b.isAttacking = false;
+            b.mouthOpenAmount = 0;
         }
     }
-    if (!b.isCharging) { b.x += b.vx * dt; b.y += b.vy * dt; }
-    b.facingLeft = b.vx < 0;
-    b.x = Math.max(120, Math.min(W - 120, b.x));
-    b.y = Math.max(120, Math.min(H - 120, b.y));
 }
 
 // ────────────────────────────────────────────────────────────────

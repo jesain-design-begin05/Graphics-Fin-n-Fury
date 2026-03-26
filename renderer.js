@@ -345,58 +345,89 @@ function drawBoss(game, ctx) {
     const b = game.boss;
     if (!isOnScreen(game, b.x, b.y, 220)) return;
 
-    const s     = worldToScreen(game, b.x, b.y);
-    const e     = game.elapsed;
-    const frame = Math.floor((e * 10 + b.frameOffset) % 6) + 1;
-    const set   = b.isCharging
-        ? (b.facingLeft ? game.bossSprite.attackL : game.bossSprite.attackR)
-        : (b.facingLeft ? game.bossSprite.left    : game.bossSprite.right);
-    const img = set[frame];
-    if (!img || !img.complete || img.naturalWidth === 0) return;
-
-    const sc  = FISH_SCALE.boss + Math.sin(e * 2) * 0.05;
-    const w   = img.naturalWidth  * sc;
-    const h   = img.naturalHeight * sc;
-    const bob = b.isCharging ? 0 : Math.sin(e * 1.5 + b.bobOffset) * 12;
-
+    const s = worldToScreen(game, b.x, b.y);
+    const e = game.elapsed;
+    
+    // ── Defensive checks ──────────────────────────────────────
+    if (!s || !b.x || !b.y) return;
+    
+    // Determine which sprite set to use
+    const isL = b.facingLeft;
+    const isMoving = Math.hypot(b.vx || 0, b.vy || 0) > 10;
+    
+    let spriteSet = null;
+    
+    if (b.isAttacking && game.abyssBossAttackLeft) {
+        spriteSet = isL ? game.abyssBossAttackLeft : game.abyssBossAttackRight;
+    } else if (isMoving && game.abyssBossSwimLeft) {
+        spriteSet = isL ? game.abyssBossSwimLeft : game.abyssBossSwimRight;
+    } else if (game.abyssBossRestLeft) {
+        spriteSet = isL ? game.abyssBossRestLeft : game.abyssBossRestRight;
+    }
+    
+    // Draw boss sprite if available
+    if (spriteSet) {
+        const frame = Math.floor((e * 10 + (b.frameOffset || 0)) % 6) + 1;
+        const img = spriteSet[frame];
+        
+        if (img && img.complete && img.naturalWidth > 0) {
+            const BOSS_SCALE = 1.8;
+            const sc = BOSS_SCALE + Math.sin(e * 2) * 0.08;
+            const w = img.naturalWidth * sc;
+            const h = img.naturalHeight * sc;
+            const bob = !b.isAttacking ? Math.sin(e * 1.2 + (b.bobOffset || 0)) * 10 : 0;
+            
+            ctx.save();
+            ctx.translate(s.x, s.y + bob);
+            
+            if (b.hitFlash > 0) {
+                ctx.shadowColor = '#ff3333';
+                ctx.shadowBlur = 70;
+            }
+            
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+            ctx.restore();
+        }
+    }
+    
+    // ── Draw health bar above boss ────────────────────────────
+    const healthBarWidth = 150;
+    const healthBarHeight = 16;
+    const healthBarX = s.x - healthBarWidth / 2;
+    const healthBarY = s.y - 100;
+    
     ctx.save();
-    ctx.translate(s.x, s.y + bob);
-    if (b.hitFlash > 0) { ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 55; }
-
-    const bSheet    = game.furySheet;
-    const hasBSheet = bSheet && bSheet.complete && bSheet.naturalWidth > 0;
-    const hasBossImg = game.bossImg && game.bossImg.complete && game.bossImg.naturalWidth > 0;
-    const BOSS_SHEET_SCALE = 2.6;
-
-    if (hasBossImg) {
-        const BOSS_IMG_SCALE = 0.55;
-        const bdw = game.bossImg.naturalWidth  * BOSS_IMG_SCALE * sc;
-        const bdh = game.bossImg.naturalHeight * BOSS_IMG_SCALE * sc;
-        ctx.save();
-        if (!b.facingLeft) ctx.scale(-1, 1);
-        ctx.globalCompositeOperation = 'screen';
-        ctx.drawImage(game.bossImg, -bdw / 2, -bdh / 2, bdw, bdh);
-        ctx.restore();
-    } else if (hasBSheet) {
-        const { dw: bdw, dh: bdh } = _furyFrameSize(bSheet, sc * BOSS_SHEET_SCALE);
-        const bCol = Math.floor((e * 8 + b.frameOffset) % FURY_COLS);
-        const bRow = b.isCharging ? FURY_ROW_ATTACK : FURY_ROW_PATROL;
-        ctx.beginPath();
-        ctx.rect(-bdw / 2, -bdh / 2, bdw, bdh);
-        ctx.clip();
-        if (!b.facingLeft) ctx.scale(-1, 1);
-        _drawFrame(ctx, bSheet, bCol, bRow, FURY_COLS, FURY_ROWS, bdw, bdh);
-    } else {
-        ctx.drawImage(img, -w / 2, -h / 2, w, h);
-    }
-    if (b.isCharging) {
-        ctx.save();
-        ctx.globalAlpha = 0.35 + Math.sin(e * 15) * 0.22;
-        ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 75;
-        ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 6;
-        ctx.beginPath(); ctx.arc(s.x, s.y, 85, 0, Math.PI * 2); ctx.stroke();
-        ctx.restore();
-    }
+    
+    // Health bar background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 2;
+    ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+    ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+    
+    // Health bar fill (red to yellow gradient)
+    const hp = b.hp || 0;
+    const maxHp = b.maxHp || 15;
+    const healthPercent = Math.max(0, Math.min(1, hp / maxHp));
+    const healthFillWidth = healthBarWidth * healthPercent;
+    
+    const healthGrad = ctx.createLinearGradient(healthBarX, 0, healthBarX + healthFillWidth, 0);
+    healthGrad.addColorStop(0, '#ff2222');
+    healthGrad.addColorStop(1, '#ffaa00');
+    ctx.fillStyle = healthGrad;
+    ctx.fillRect(healthBarX + 1, healthBarY + 1, healthFillWidth - 2, healthBarHeight - 2);
+    
+    // HP text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(`${Math.ceil(hp)} / ${maxHp}`, s.x, healthBarY + healthBarHeight / 2);
+    
     ctx.restore();
 }
 
@@ -760,6 +791,32 @@ function drawHUD(game, ctx, W, H) {
     ctx.font = "bold 15px 'Bangers', cursive"; ctx.textAlign = 'left';
     ctx.strokeText(remTxt, 40, 190); ctx.fillStyle = remCol; ctx.fillText(remTxt, 40, 190);
     ctx.restore();
+
+    // ── Boss intro message (when boss first appears) ─────────────────
+    if (game.boss && game.boss.bossIntroPhase && !game.bossDefeated) {
+        const t = game.boss.bossIntroTimer;
+        const total = 2.0;
+        const elapsed = total - t;
+        let alpha = 1;
+        if (elapsed < 0.5) alpha = elapsed / 0.5;
+        else if (t < 0.6) alpha = t / 0.6;
+        
+        ctx.save(); 
+        ctx.globalAlpha = alpha;
+        
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = "bold 32px 'Bangers', cursive";
+        ctx.fillStyle = '#ff4040';
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 30;
+        ctx.fillText('⚡ ABYSS MONSTER FISH ⚡', W / 2, H / 2 - 40);
+        
+        ctx.font = "bold 18px 'Exo 2', sans-serif";
+        ctx.fillStyle = '#ffaa66';
+        ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 15;
+        ctx.fillText('A horrifying creature emerges from the depths!', W / 2, H / 2 + 40);
+        
+        ctx.restore();
+    }
 
     if (game.boss && !game.bossDefeated) {
         const barW = 320, barH = 22;

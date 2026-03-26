@@ -218,8 +218,9 @@ function _checkEatFish(game, pr, rank) {
                 game.lastEatTime = game.elapsed;  // triggers bite animation in renderer
 
                 // ── Bubble text RIGHT at Fin's mouth ──────────
-                // Try every common velocity variable name as a fallback chain.
-                spawnEatBubble(game);
+                // Spawn bubble text (YUM, CHOMP, etc.) at Fin's mouth
+                const finVx = game.fishVx || (game.fishFacingLeft ? -1 : 1);
+                _spawnBubbleText(game, game.fishX, game.fishY, finVx, pr);
 
                 playSound(game, 'eat');
             } else if (fishEatsFin) {
@@ -285,15 +286,18 @@ function _checkEnemyContact(game, pr) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Boss contact
+// Boss contact — Abyss Monster Fish attacks
 // ─────────────────────────────────────────────────────────────
 
 function _checkBossContact(game, pr) {
     if (!game.boss || game.bossDefeated) return;
-    const hitR = game.boss.isCharging ? 80 : FISH_DEF.boss.hitRadius;
+    
+    // Boss deals damage when attacking or just from proximity
+    const hitR = game.boss.isAttacking ? 100 : FISH_DEF.boss.hitRadius;
     if (Math.hypot(game.fishX - game.boss.x, game.fishY - game.boss.y) < pr + hitR) {
         if (game.damageCooldown <= 0) {
             game._startBeingEaten(game.boss);
+            game.damageCooldown = 0.8;  // Prevent rapid damage spam
         }
     }
 }
