@@ -64,6 +64,12 @@ class GameSystem {
         this.particles      = [];
         this.bubbleTexts    = [];   // ← eat-bubble messages
 
+        // Respawn tracking
+        this.maxFuryfish     = 0;  // original spawn count
+        this.maxEnemies      = 0;  // original spawn count
+        this.furyfishRespawnTimer = 0;
+        this.enemyRespawnTimer    = 0;
+
         this.boss         = null;
         this.bossDefeated = false;
 
@@ -96,6 +102,13 @@ class GameSystem {
 
         this.tryAgainButtonRect = null;
         this.continueButtonRect = null;
+
+        // ── Pause / Settings ──────────────────────────────────
+        this.isPaused      = false;
+        this.showSettings  = false;
+        this.settingsBtnRect = null;   // top-right gear button hit area
+        this.resumeBtnRect   = null;   // "Resume" button on pause screen
+        this.closeBtnRect    = null;   // "✕" on settings panel
 
         // Camera
         this.cam   = { x: 0, y: 0 };
@@ -159,6 +172,10 @@ class GameSystem {
         this.finHp           = FIN_MAX_HP;
         this.finMaxHp        = FIN_MAX_HP;
 
+        // Reset respawn timers (start with full delay to prevent immediate respawning)
+        this.furyfishRespawnTimer = FURYFISH_RESPAWN_DELAY;
+        this.enemyRespawnTimer    = ENEMY_RESPAWN_DELAY;
+
         spawnStageEntities(this);
         spawnParticles(this);
 
@@ -176,7 +193,7 @@ class GameSystem {
         this.elapsed += dt;
         this._lastDt = dt;   // stored so renderer can pass correct dt to drawBubbleTexts
 
-        if (!this.gameOver && !this.stageClear) {
+        if (!this.gameOver && !this.stageClear && !this.isPaused) {
             this._update(dt);
         } else if (this.stageClear) {
             this.stageClearTimer += dt;
@@ -190,6 +207,8 @@ class GameSystem {
         if (this.gameOver)   drawGameOver(this);
         if (this.stageClear) drawStageClearScreen(this);
         if (this.isEaten)    drawEatenScreen(this);
+        if (this.isPaused && !this.showSettings) drawPauseScreen(this);
+        if (this.showSettings) drawSettingsPanel(this);
 
         requestAnimationFrame(ts2 => this._animate(ts2));
     }
@@ -246,8 +265,8 @@ class GameSystem {
             this.fishX = this.world.w - wrapMargin - 10;
         }
 
-        // Y stays clamped to world
-        const marginY = 55;
+        // Y stays clamped to world bounds — small margin so Fin can reach near top/bottom
+        const marginY = 18;
         this.fishY = Math.max(marginY, Math.min(this.world.h - marginY, this.fishY));
 
         updateCamera(this, dt);
@@ -271,10 +290,12 @@ class GameSystem {
 
         checkCollisions(this);
 
-        // Stage clears only when ALL entities are gone — fish, furyfish, enemies, and boss
-        const bossOk    = !this.boss      || this.bossDefeated;
+        // Stage clears when all ENEMIES (furyfish + bgEnemies) and bosses are defeated.
+        // Edible fish (clownfish, goldfish etc.) do NOT block stage progression.
+        const bossOk     = !this.boss     || this.bossDefeated;
         const kingCrabOk = !this.kingCrab || this.kingCrab.defeated;
-        if (countEdible(this) === 0 && bossOk && kingCrabOk && !this.stageClear) {
+        const enemiesOk  = this.bgFuryfish.length === 0 && this.bgEnemies.length === 0;
+        if (enemiesOk && bossOk && kingCrabOk && !this.stageClear) {
             this.stageClear      = true;
             this.stageClearTimer = 0;
             this._buildStageClearInfo();
@@ -402,6 +423,31 @@ class GameSystem {
         }
         this.stage++;
         this._initStage();
+    }
+
+    // ── Pause / Settings ──────────────────────────────────────
+    _togglePause() {
+        // Can't pause on game-over, stage-clear, or eaten screens
+        if (this.gameOver || this.stageClear || this.isEaten) return;
+        if (this.showSettings) { this.showSettings = false; this.isPaused = false; return; }
+        this.isPaused = !this.isPaused;
+        // Pause/resume BGM
+        if (this.bgm) {
+            if (this.isPaused) this.bgm.pause();
+            else this.bgm.play().catch(() => {});
+        }
+    }
+
+    _openSettings() {
+        this.isPaused     = true;
+        this.showSettings = true;
+        if (this.bgm) this.bgm.pause();
+    }
+
+    _closeSettings() {
+        this.showSettings = false;
+        this.isPaused     = false;
+        if (this.bgm) this.bgm.play().catch(() => {});
     }
 
     _restartGame() {

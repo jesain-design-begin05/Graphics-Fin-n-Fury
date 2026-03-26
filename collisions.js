@@ -330,82 +330,96 @@ function _checkBossContact(game, pr) {
 // Projectile hits
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Damage per projectile scales with Fin's size.
+ * Small (< 1.00) = 1 dmg,  Medium (1.00–1.54) = 2 dmg,  Large (1.55+) = 4 dmg
+ */
+function _projectileDamage(game) {
+    if (game.playerSize >= 1.55) return 4;
+    if (game.playerSize >= 1.00) return 2;
+    return 1;
+}
+
 function _checkProjectileHits(game) {
+    const dmg = _projectileDamage(game);
+
     for (let i = game.projectiles.length - 1; i >= 0; i--) {
         const p = game.projectiles[i];
         let hit = false;
 
+        // ── Furyfish — full body hitRadius, no hit-count floating text ──
         for (let j = game.bgFuryfish.length - 1; j >= 0; j--) {
-            if (Math.hypot(p.x - game.bgFuryfish[j].x, p.y - game.bgFuryfish[j].y) < 48) {
-                const f = game.bgFuryfish[j];
-                f.hp = (f.hp ?? 1) - 1;
-                f.hitFlash = 0.20;
+            const f = game.bgFuryfish[j];
+            if (Math.hypot(p.x - f.x, p.y - f.y) < FISH_DEF.furyfish.hitRadius) {
+                f.hp = (f.hp ?? 1) - dmg;
+                f.hitFlash = 0.22;
                 game.projectiles.splice(i, 1);
                 playSound(game, 'shootHit');
                 if (f.hp <= 0) {
                     game._addScore(SCORE.POISON);
                     game._spawnFloatingText(f.x, f.y, `+${SCORE.POISON}`, '#ff4f00');
                     game.bgFuryfish.splice(j, 1);
-                } else {
-                    game._spawnFloatingText(f.x, f.y - 30, `HIT! (${f.hp}HP)`, '#ff8040');
                 }
+                // no floating text on non-kill — HP bar is visual feedback
                 hit = true; break;
             }
         }
         if (hit) continue;
 
+        // ── Regular enemies — full body hitRadius, no hit-count text ──
         for (let j = game.bgEnemies.length - 1; j >= 0; j--) {
-            if (Math.hypot(p.x - game.bgEnemies[j].x, p.y - game.bgEnemies[j].y) < 48) {
-                const f = game.bgEnemies[j];
-                f.hp = (f.hp ?? 1) - 1;
-                f.hitFlash = 0.20;
+            const f = game.bgEnemies[j];
+            if (Math.hypot(p.x - f.x, p.y - f.y) < FISH_DEF.enemy.hitRadius) {
+                f.hp = (f.hp ?? 1) - dmg;
+                f.hitFlash = 0.22;
                 game.projectiles.splice(i, 1);
                 playSound(game, 'shootHit');
                 if (f.hp <= 0) {
                     game._addScore(SCORE.ENEMY);
                     game._spawnFloatingText(f.x, f.y, `+${SCORE.ENEMY}`, '#ff8800');
                     game.bgEnemies.splice(j, 1);
-                } else {
-                    game._spawnFloatingText(f.x, f.y - 30, `HIT! (${f.hp}HP)`, '#ffaa40');
                 }
                 hit = true; break;
             }
         }
         if (hit) continue;
 
+        // ── Boss ──────────────────────────────────────────────────
         if (game.boss && !game.bossDefeated) {
-            if (Math.hypot(p.x - game.boss.x, p.y - game.boss.y) < 78) {
-                game.boss.hp--;
+            if (Math.hypot(p.x - game.boss.x, p.y - game.boss.y) < FISH_DEF.boss.hitRadius) {
+                game.boss.hp -= dmg;
                 game.boss.hitFlash = 0.18;
                 game.projectiles.splice(i, 1);
                 game._addScore(SCORE.BOSS_HIT);
-                game._spawnFloatingText(game.boss.x, game.boss.y - 55, `HIT! +${SCORE.BOSS_HIT}`, '#ff4f00');
+                game._spawnFloatingText(game.boss.x, game.boss.y - 55, `+${SCORE.BOSS_HIT}`, '#ff4f00');
                 playSound(game, 'shootHit');
                 if (game.boss.hp <= 0) {
                     game.bossDefeated = true;
                     game._addScore(SCORE.BOSS_KILL);
                     game._spawnFloatingText(game.boss.x, game.boss.y - 90, `BOSS DOWN! +${SCORE.BOSS_KILL}`, '#ffd060');
                 }
+                hit = true;
             }
         }
+        if (hit) continue;
 
-        // ── King Crab projectile hits ──────────────────────────
+        // ── King Crab ─────────────────────────────────────────────
         const kc = game.kingCrab;
         if (kc && !kc.defeated) {
-            if (Math.hypot(p.x - kc.x, p.y - kc.y) < FISH_DEF.kingCrab.hitRadius * 0.75) {
-                kc.hp--;
+            if (Math.hypot(p.x - kc.x, p.y - kc.y) < FISH_DEF.kingCrab.hitRadius) {
+                kc.hp       -= dmg;
                 kc.hitFlash  = 0.22;
                 kc.frameRow  = KC_ROW_HURT;
                 kc.frameCol  = 0;
                 game.projectiles.splice(i, 1);
                 game._addScore(SCORE.BOSS_HIT);
-                game._spawnFloatingText(kc.x, kc.y - 60, `HIT! +${SCORE.BOSS_HIT}`, '#ff4f00');
+                game._spawnFloatingText(kc.x, kc.y - 60, `+${SCORE.BOSS_HIT}`, '#ff4f00');
                 playSound(game, 'shootHit');
                 if (kc.hp <= 0) {
-                    kc.defeated = true;
+                    kc.defeated       = true;
                     game.bossDefeated = true;
                     game._addScore(SCORE.BOSS_KILL);
-                    game._spawnFloatingText(kc.x, kc.y - 100, `KING CRAB DEFEATED! +${SCORE.BOSS_KILL}`, '#ffd060');
+                    game._spawnFloatingText(kc.x, kc.y - 100, `KING CRAB DOWN! +${SCORE.BOSS_KILL}`, '#ffd060');
                 }
             }
         }

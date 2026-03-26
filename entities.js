@@ -76,10 +76,14 @@ function spawnStageEntities(game) {
         game.bgEnemies.push(mkDef('enemy', 0.08, 0.88, { isAttacking: false, hp: ENEMY_HP, maxHp: ENEMY_HP, hitFlash: 0 }));
     }
 
+    // Track original spawn counts for respawning
+    game.maxFuryfish = game.bgFuryfish.length;
+    game.maxEnemies  = game.bgEnemies.length;
+
     for (let i = 0; i < 2; i++) {
         game.clams.push({
             x: W * 0.12 + Math.random() * W * 0.76,
-            y: H * 0.88 + Math.random() * H * 0.09,
+            y: H * 0.92 + Math.random() * H * 0.03,  // pinned to floor
             hasPearl: true, openAnim: 0, pearlCollected: false,
             respawnTimer: 0,   // counts down after pearl is taken
         });
@@ -181,6 +185,30 @@ function updateFuryfish(game, dt) {
         f.x += f.vx * dt; f.y += f.vy * dt;
         _screenWrapX(f, game);
     }
+
+    // Respawn logic
+    if (game.bgFuryfish.length < game.maxFuryfish) {
+        game.furyfishRespawnTimer += dt;
+        if (game.furyfishRespawnTimer >= FURYFISH_RESPAWN_DELAY) {
+            // Respawn a furyfish
+            const furyfish = makeFish(
+                game.world.w, game.world.h, 0.05, 0.90,
+                FISH_DEF.furyfish.speedMin, FISH_DEF.furyfish.speedMax,
+                { 
+                    type: 'furyfish',
+                    isAttacking: false, 
+                    chaseSpeed: 0, 
+                    hp: FURYFISH_HP, 
+                    maxHp: FURYFISH_HP, 
+                    hitFlash: 0 
+                }
+            );
+            game.bgFuryfish.push(furyfish);
+            game.furyfishRespawnTimer = 0;
+        }
+    } else {
+        game.furyfishRespawnTimer = 0; // reset if at max
+    }
 }
 
 function updateEnemies(game, dt) {
@@ -202,6 +230,29 @@ function updateEnemies(game, dt) {
         }
         f.x += f.vx * dt; f.y += f.vy * dt;
         _screenWrapX(f, game);
+    }
+
+    // Respawn logic
+    if (game.bgEnemies.length < game.maxEnemies) {
+        game.enemyRespawnTimer += dt;
+        if (game.enemyRespawnTimer >= ENEMY_RESPAWN_DELAY) {
+            // Respawn an enemy
+            const enemy = makeFish(
+                game.world.w, game.world.h, 0.08, 0.88,
+                FISH_DEF.enemy.speedMin, FISH_DEF.enemy.speedMax,
+                { 
+                    type: 'enemy',
+                    isAttacking: false, 
+                    hp: ENEMY_HP, 
+                    maxHp: ENEMY_HP, 
+                    hitFlash: 0 
+                }
+            );
+            game.bgEnemies.push(enemy);
+            game.enemyRespawnTimer = 0;
+        }
+    } else {
+        game.enemyRespawnTimer = 0; // reset if at max
     }
 }
 
@@ -414,10 +465,15 @@ function updateKingCrab(game, dt) {
 // ────────────────────────────────────────────────────────────────
 
 function updateClams(game, dt) {
+    const W = game.world.w;
+    const H = game.world.h;
     for (const clam of game.clams) {
         if (clam.pearlCollected) {
             clam.respawnTimer = (clam.respawnTimer || 0) + dt;
             if (clam.respawnTimer >= CLAM_RESPAWN_TIME) {
+                // Move clam to a new random position along the sea floor
+                clam.x            = W * 0.12 + Math.random() * W * 0.76;
+                clam.y            = H * 0.88 + Math.random() * H * 0.09;
                 clam.pearlCollected = false;
                 clam.hasPearl       = true;
                 clam.openAnim       = 0;
@@ -436,24 +492,226 @@ function spawnDecorations(game) {
     const W = game.world.w;
     const H = game.world.h;
 
-    game.decoItems = [
-        // One sunken boat in lower third
-        { type: 'boat',       x: W * 0.18 + Math.random() * W * 0.64, y: H * 0.76 + Math.random() * H * 0.12, scale: 0.90 },
-        // Coral clusters on sea floor
-        { type: 'coral1',     x: W * 0.08 + Math.random() * W * 0.30, y: H * 0.88 + Math.random() * H * 0.06, scale: 0.70 },
-        { type: 'coral1',     x: W * 0.55 + Math.random() * W * 0.35, y: H * 0.87 + Math.random() * H * 0.06, scale: 0.60 },
-        { type: 'coral3',     x: W * 0.30 + Math.random() * W * 0.20, y: H * 0.89 + Math.random() * H * 0.05, scale: 0.65 },
-        { type: 'coral3',     x: W * 0.72 + Math.random() * W * 0.20, y: H * 0.88 + Math.random() * H * 0.06, scale: 0.55 },
-        // Seagrass patches along the floor
-        { type: 'seagrass',   x: W * 0.12 + Math.random() * W * 0.18, y: H * 0.90, scale: 0.55 },
-        { type: 'seagrass',   x: W * 0.40 + Math.random() * W * 0.22, y: H * 0.90, scale: 0.48 },
-        { type: 'seagrass',   x: W * 0.65 + Math.random() * W * 0.22, y: H * 0.90, scale: 0.52 },
-        // Large fish shadow drifting mid-water in background
-        { type: 'fishshadow', x: W * 0.20 + Math.random() * W * 0.60, y: H * 0.38 + Math.random() * H * 0.20, scale: 1.10 },
+    // FLOOR_Y is where the base of floor decorations should sit.
+    // 96–97 % puts the bottom of each sprite right on the seabed.
+    const FLOOR_Y      = H * 0.96;   // ← changed from 0.96
+    const FLOOR_Y_DEEP = H * 0.94;   // ← changed from 0.97
+
+ game.decoItems = [
+    // ── Sunken boat — base sits on the seafloor ───────────
+    {
+        type:  'boat',
+        x:     W * 0.18 + Math.random() * W * 0.64,
+        y:     FLOOR_Y +80+ Math.random() * H * 0.01,
+        scale: 0.55,
+    },
+
+    // ── Coral clusters — base on seabed ──────────────────
+    {
+        type:  'coral1',
+        x:     W * 0.10 + Math.random() * W * 0.20,   // FIX: was * 0. (zero), now * 0.20
+        y:     FLOOR_Y_DEEP + 80,
+        scale: 0.45,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.45 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.65 + Math.random() * W * 0.22,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.35 + Math.random() * W * 0.35,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral1',
+        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
+        y:     FLOOR_Y_DEEP + 75 ,
+        scale: 0.40,
+    },
+    {
+        type:  'coral3',
+        x:     W * 0.30 + Math.random() * W * 0.20,
+        y:     FLOOR_Y_DEEP + 75,
+        scale: 0.38,
+    },
+    {
+        type:  'coral3',
+        x:     W * 0.72 + Math.random() * W * 0.15,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+    {
+       type:  'coral3',
+        x:     W * 0.80 + Math.random() * W * 0.10,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+    {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+     {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+     {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+     {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+     {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+     {
+       type:  'coral3',
+        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
+        y:     FLOOR_Y_DEEP +75,
+        scale: 0.35,
+    },
+
+    // ── Seagrass patches — base on seabed ────────────────
+    {
+        type:  'seagrass',
+        x:     W * 0.12 + Math.random() * W * 0.18,
+        y:     FLOOR_Y_DEEP +70,
+        scale: 0.32,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.40 + Math.random() * W * 0.22,
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.28,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+    {
+        type:  'seagrass',
+        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
+        y:     FLOOR_Y_DEEP + 70,
+        scale: 0.30,
+    },
+        // ── Fish shadow — drifts mid-water (centred, not floor) ─
+        {
+            type:  'fishshadow',
+            x:     W * 0.20 + Math.random() * W * 0.60,
+            y:     H * 0.42 + Math.random() * H * 0.15,
+            scale: 1.10,
+        },
     ];
 
-    // ── Seaweed — 1 to 3 clumps per stage, random X along the floor ──
-    const seaweedCount = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+    // ── Seaweed clumps — base on seabed, spread across the floor ─
+    const seaweedCount = 1 + Math.floor(Math.random() * 10); // 1–3 clumps
     const zoneW = W / seaweedCount;
     for (let i = 0; i < seaweedCount; i++) {
         const zoneStart = zoneW * i;
@@ -462,7 +720,7 @@ function spawnDecorations(game) {
         game.decoItems.push({
             type:  'seaweed',
             x:     safeStart + Math.random() * safeRange,
-            y:     H * 0.88 + Math.random() * H * 0.05,
+            y:     FLOOR_Y_DEEP +100,          // base on seabed — renderer draws upward from here
             scale: 0.55 + Math.random() * 0.25,
         });
     }

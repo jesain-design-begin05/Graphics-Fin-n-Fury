@@ -13,7 +13,9 @@
 /* Stage 1 — Sunlit Surface Layer */
 .path1-stage1 {
   background:
-    /* Caustic light rays from surface */
+    url("rockko.png") bottom center / 25% auto no-repeat,
+
+    /* existing layers ↓ */
     repeating-linear-gradient(
       172deg,
       transparent 0%,
@@ -28,7 +30,6 @@
       transparent 0.9%,
       transparent 4%
     ),
-    /* Depth gradient — bright teal to mid green */
     linear-gradient(
       to bottom,
       #1fd0c8 0%,
@@ -40,7 +41,6 @@
       #074e44 78%,
       #054038 100%
     );
-  background-color: #054038;
 }
 
 /* Stage 2 — Mid Canopy (filtered green light) */

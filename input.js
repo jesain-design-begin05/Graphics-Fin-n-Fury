@@ -19,6 +19,7 @@ function initInput(game) {
     window.addEventListener('keydown', e => {
         const k = e.key.toLowerCase();
         if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+        if (e.key === 'Escape') { game._togglePause(); return; }
         if (e.key === ' ' && !game.keys[' ']) game.fishAttacking = true;
         game.keys[k] = true;
     });
@@ -88,6 +89,34 @@ function _routeCanvasClick(game, e) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // Settings panel interactions
+    if (game.showSettings) {
+        if (game.closeBtnRect) {
+            const b = game.closeBtnRect;
+            if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._closeSettings(); return; }
+        }
+        _handleSettingsClick(game, x, y);
+        return;
+    }
+
+    // Pause screen resume button
+    if (game.isPaused && game.resumeBtnRect) {
+        const b = game.resumeBtnRect;
+        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._togglePause(); return; }
+        // Also check if settings icon was clicked while paused
+        if (game.settingsBtnRect) {
+            const s = game.settingsBtnRect;
+            if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) { game._openSettings(); return; }
+        }
+        return; // Block other clicks while paused
+    }
+
+    // Gear / settings button (top-right, always visible during play)
+    if (game.settingsBtnRect && !game.gameOver && !game.stageClear) {
+        const s = game.settingsBtnRect;
+        if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) { game._openSettings(); return; }
+    }
+
     if (game.gameOver && game.tryAgainButtonRect) {
         const b = game.tryAgainButtonRect;
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._restartGame(); return; }
@@ -95,6 +124,24 @@ function _routeCanvasClick(game, e) {
     if (game.stageClear && game.continueButtonRect) {
         const b = game.continueButtonRect;
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._nextStage(); return; }
+    }
+}
+
+// Handle clicks inside the settings panel (control mode toggle, etc.)
+function _handleSettingsClick(game, x, y) {
+    if (!game._settingsRows) return;
+    for (const row of game._settingsRows) {
+        for (const opt of row.opts) {
+            if (x >= opt.x && x <= opt.x + opt.w && y >= opt.y && y <= opt.y + opt.h) {
+                localStorage.setItem(row.key, opt.value);
+                // If switching away from mouse, clear mouse state
+                if (row.key === 'finNFury_controlMode' && opt.value !== 'mouse') {
+                    game.mouseActive = false;
+                    game.mouseWorld  = null;
+                }
+                return;
+            }
+        }
     }
 }
 

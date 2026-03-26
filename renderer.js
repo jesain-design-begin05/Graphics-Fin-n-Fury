@@ -98,7 +98,7 @@ function drawMantaRay(game, ctx) {
     // Sheet: 4 cols × 2 rows = 8 frames, sprite faces LEFT naturally
     const frameW = img.naturalWidth  / m.COLS;
     const frameH = img.naturalHeight / m.ROWS;
-    const scale  = 0.55; // adjust to taste
+    const scale  = 5; // adjust to taste
     const drawW  = frameW * scale;
     const drawH  = frameH * scale;
 
@@ -302,19 +302,19 @@ function drawBgFish(game, ctx) {
             }
             ctx.restore();
 
-            // ── Furyfish HP bar ───────────────────────────────
+            // ── Furyfish HP bar — plain red, no text, smooth fill ──
             if (f.hp != null && f.maxHp != null) {
-                const barW = dw * 0.8, barH = 6;
+                const barW = Math.max(dw * 0.85, 50), barH = 7;
                 const barX = s.x - barW / 2;
-                const barY = s.y - dh / 2 - 12 + bob;
+                const barY = s.y - dh / 2 - 14 + bob;
                 const pct  = Math.max(0, f.hp / f.maxHp);
                 ctx.save();
-                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillStyle = 'rgba(0,0,0,0.65)';
                 ctx.fillRect(barX, barY, barW, barH);
-                ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : `rgb(${Math.floor(220*(1-pct)+30)},${Math.floor(180*pct)},20)`;
-                ctx.fillRect(barX, barY, barW * pct, barH);
-                ctx.strokeStyle = 'rgba(255,80,0,0.7)';
-                ctx.lineWidth = 1;
+                ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : '#cc0000';
+                ctx.fillRect(barX + 1, barY + 1, Math.max(0, (barW - 2) * pct), barH - 2);
+                ctx.strokeStyle = '#ff2222';
+                ctx.lineWidth = 1.2;
                 ctx.strokeRect(barX, barY, barW, barH);
                 ctx.restore();
             }
@@ -352,19 +352,19 @@ function drawBgFish(game, ctx) {
         }
         ctx.restore();
 
-        // ── Enemy HP bar ──────────────────────────────────────
+        // ── Enemy HP bar — plain red, no text, smooth fill ───
         if (f.hp != null && f.maxHp != null) {
-            const barW = dw * 0.8, barH = 6;
+            const barW = Math.max(dw * 0.85, 50), barH = 7;
             const barX = s.x - barW / 2;
-            const barY = s.y - dh / 2 - 12 + bob;
+            const barY = s.y - dh / 2 - 14 + bob;
             const pct  = Math.max(0, f.hp / f.maxHp);
             ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillStyle = 'rgba(0,0,0,0.65)';
             ctx.fillRect(barX, barY, barW, barH);
-            ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : `rgb(${Math.floor(220*(1-pct)+30)},${Math.floor(180*pct)},20)`;
-            ctx.fillRect(barX, barY, barW * pct, barH);
-            ctx.strokeStyle = 'rgba(255,120,0,0.7)';
-            ctx.lineWidth = 1;
+            ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : '#cc0000';
+            ctx.fillRect(barX + 1, barY + 1, Math.max(0, (barW - 2) * pct), barH - 2);
+            ctx.strokeStyle = '#ff2222';
+            ctx.lineWidth = 1.2;
             ctx.strokeRect(barX, barY, barW, barH);
             ctx.restore();
         }
@@ -838,20 +838,12 @@ function drawHUD(game, ctx, W, H) {
     ctx.strokeText(pearlTxt, 40, 168); ctx.fillStyle = pearlCol; ctx.fillText(pearlTxt, 40, 168);
     ctx.restore();
 
-    const rem       = countEdible(game);
-    const remFish   = (game.bgTinyfish ? game.bgTinyfish.length : 0)
-                    + game.bgClownfish.length + game.bgGoldfish.length
-                    + game.bgSecondfish.length + game.bgTertiaryfish.length
-                    + game.bgTunafish.length;
     const remEnemies = game.bgFuryfish.length + game.bgEnemies.length;
     const hasBoss = (game.boss && !game.bossDefeated) || (game.kingCrab && !game.kingCrab.defeated);
     let remTxt, remCol;
-    if (rem > 0) {
-        const parts = [];
-        if (remFish   > 0) parts.push(`🐟 ${remFish} fish`);
-        if (remEnemies > 0) parts.push(`💀 ${remEnemies} enemy`);
-        remTxt = 'EAT: ' + parts.join('  ');
-        remCol = '#80ffb0';
+    if (remEnemies > 0) {
+        remTxt = `💀 KILL ${remEnemies} ENEM${remEnemies === 1 ? 'Y' : 'IES'} TO ADVANCE`;
+        remCol = '#ff8080';
     } else if (hasBoss) {
         remTxt = '🔥 DEFEAT THE BOSS!';
         remCol = '#ff8040';
@@ -930,6 +922,11 @@ function drawHUD(game, ctx, W, H) {
     }
 
     drawMinimap(game, ctx, W, H);
+
+    // ── Settings gear button (top-right, above minimap) ───────────
+    if (!game.gameOver && !game.stageClear) {
+        _drawSettingsBtn(game, ctx, W, H);
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1251,13 +1248,259 @@ function drawStageClearScreen(game) {
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Utility
+//  Settings gear button (always-visible top-right icon)
 // ────────────────────────────────────────────────────────────────
 
+function _drawSettingsBtn(game, ctx, W, H) {
+    const sz  = 38;
+    const mg  = 12;
+    const x   = W - sz - mg;
+    const y   = mg;
+
+    // Store hit rect for click detection in input.js
+    game.settingsBtnRect = { x, y, w: sz, h: sz };
+
+    const isPaused = game.isPaused;
+    ctx.save();
+    ctx.globalAlpha = isPaused ? 1.0 : 0.82;
+
+    // Pill background
+    ctx.fillStyle   = isPaused ? 'rgba(0,160,255,0.28)' : 'rgba(0,8,24,0.62)';
+    ctx.strokeStyle = isPaused ? 'rgba(0,200,255,0.85)' : 'rgba(60,190,255,0.45)';
+    ctx.lineWidth   = 1.8;
+    _rrect(ctx, x, y, sz, sz, 8); ctx.fill();
+    _rrect(ctx, x, y, sz, sz, 8); ctx.stroke();
+
+    // Gear icon (drawn with canvas paths — no emoji to ensure pixel-crisp look)
+    const cx = x + sz / 2;
+    const cy = y + sz / 2;
+    const r1 = 9.5, r2 = 6, teeth = 6;
+    ctx.fillStyle   = isPaused ? '#00d4ff' : 'rgba(160,220,255,0.90)';
+    ctx.strokeStyle = 'transparent';
+    ctx.beginPath();
+    for (let i = 0; i < teeth * 2; i++) {
+        const angle = (i / (teeth * 2)) * Math.PI * 2;
+        const r     = i % 2 === 0 ? r1 : r1 - 4;
+        ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    }
+    ctx.closePath(); ctx.fill();
+
+    // Centre hole
+    ctx.fillStyle = isPaused ? 'rgba(0,160,255,0.28)' : 'rgba(0,8,24,0.62)';
+    ctx.beginPath(); ctx.arc(cx, cy, r2 - 1.5, 0, Math.PI * 2); ctx.fill();
+
+    // Tiny ESC hint below icon
+    ctx.fillStyle   = 'rgba(130,200,255,0.55)';
+    ctx.font        = "bold 8px 'Exo 2', sans-serif";
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('ESC', cx, y + sz + 2);
+
+    ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Pause screen overlay
+// ────────────────────────────────────────────────────────────────
+
+function drawPauseScreen(game) {
+    const { ctx, canvas, dpr } = game;
+    const W = canvas.width / dpr, H = canvas.height / dpr;
+    ctx.save(); ctx.scale(dpr, dpr);
+
+    // Dim backdrop
+    ctx.fillStyle = 'rgba(0,8,24,0.72)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Vignette
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.12, W/2, H/2, H*0.72);
+    vg.addColorStop(0, 'rgba(0,20,50,0)');
+    vg.addColorStop(1, 'rgba(0,10,30,0.50)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    // Panel
+    const pW = Math.min(360, W * 0.88), pH = 220;
+    const pX = (W - pW) / 2, pY = (H - pH) / 2;
+    ctx.fillStyle   = 'rgba(0,20,50,0.90)';
+    ctx.strokeStyle = 'rgba(0,200,255,0.60)';
+    ctx.lineWidth   = 2;
+    _rrect(ctx, pX, pY, pW, pH, 18); ctx.fill();
+    _rrect(ctx, pX, pY, pW, pH, 18); ctx.stroke();
+
+    // Title
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "bold 58px 'Bangers', cursive";
+    ctx.shadowColor  = '#00c8ff'; ctx.shadowBlur = 20;
+    ctx.fillStyle    = '#ffffff';
+    ctx.fillText('⏸ PAUSED', W / 2, pY + 68);
+    ctx.shadowBlur   = 0;
+
+    ctx.font      = "16px 'Exo 2', sans-serif";
+    ctx.fillStyle = 'rgba(140,200,255,0.65)';
+    ctx.fillText('Press ESC or click Resume to continue', W / 2, pY + 108);
+
+    // Resume button
+    const bW = 200, bH = 50, bX = (W - bW) / 2, bY = pY + pH - 72;
+    game.resumeBtnRect = { x: bX, y: bY, w: bW, h: bH };
+    const gd = ctx.createLinearGradient(bX, bY, bX, bY + bH);
+    gd.addColorStop(0, '#00c8ff'); gd.addColorStop(1, '#0055cc');
+    ctx.fillStyle   = gd;
+    _rrect(ctx, bX, bY, bW, bH, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,220,255,0.80)'; ctx.lineWidth = 2;
+    _rrect(ctx, bX, bY, bW, bH, 10); ctx.stroke();
+
+    ctx.fillStyle    = '#fff';
+    ctx.font         = "bold 26px 'Bangers', cursive";
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('▶ RESUME', W / 2, bY + bH / 2 + 2);
+
+    ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Settings panel overlay
+// ────────────────────────────────────────────────────────────────
+
+function drawSettingsPanel(game) {
+    const { ctx, canvas, dpr } = game;
+    const W = canvas.width / dpr, H = canvas.height / dpr;
+    ctx.save(); ctx.scale(dpr, dpr);
+
+    // Dim backdrop
+    ctx.fillStyle = 'rgba(0,8,24,0.78)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Panel
+    const pW = Math.min(400, W * 0.92), pH = 310;
+    const pX = (W - pW) / 2, pY = (H - pH) / 2;
+    ctx.fillStyle   = 'rgba(0,18,46,0.95)';
+    ctx.strokeStyle = 'rgba(0,200,255,0.60)';
+    ctx.lineWidth   = 2;
+    _rrect(ctx, pX, pY, pW, pH, 18); ctx.fill();
+    _rrect(ctx, pX, pY, pW, pH, 18); ctx.stroke();
+
+    // Title
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "bold 42px 'Bangers', cursive";
+    ctx.shadowColor  = '#00c8ff'; ctx.shadowBlur = 14;
+    ctx.fillStyle    = '#ffffff';
+    ctx.fillText('⚙ SETTINGS', W / 2, pY + 46);
+    ctx.shadowBlur   = 0;
+
+    // ── Close (✕) button ─────────────────────────────────
+    const closeSize = 30;
+    const closeX    = pX + pW - closeSize - 10;
+    const closeY    = pY + 10;
+    game.closeBtnRect = { x: closeX, y: closeY, w: closeSize, h: closeSize };
+    ctx.fillStyle   = 'rgba(255,80,80,0.20)';
+    ctx.strokeStyle = 'rgba(255,100,100,0.55)';
+    ctx.lineWidth   = 1.5;
+    _rrect(ctx, closeX, closeY, closeSize, closeSize, 6); ctx.fill();
+    _rrect(ctx, closeX, closeY, closeSize, closeSize, 6); ctx.stroke();
+    ctx.font         = "bold 18px 'Exo 2', sans-serif";
+    ctx.fillStyle    = 'rgba(255,160,160,0.95)';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✕', closeX + closeSize / 2, closeY + closeSize / 2);
+
+    // ── Divider ───────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(60,160,255,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pX + 24, pY + 76); ctx.lineTo(pX + pW - 24, pY + 76); ctx.stroke();
+
+    // ── Control mode row ──────────────────────────────────
+    const currentMode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+    const rowY        = pY + 108;
+    ctx.font      = "bold 16px 'Exo 2', sans-serif";
+    ctx.fillStyle = 'rgba(180,220,255,0.85)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('Control Mode', pX + 28, rowY);
+
+    const opts = [
+        { label: '⌨ Keyboard', value: 'keyboard' },
+        { label: '🖱 Mouse',    value: 'mouse'    },
+    ];
+    const btnW = 110, btnH = 36, gap = 10;
+    const startX = pX + pW - (opts.length * (btnW + gap)) - 18 + gap;
+    const settingsRows = [{ key: 'finNFury_controlMode', opts: [] }];
+
+    opts.forEach((opt, i) => {
+        const bx     = startX + i * (btnW + gap);
+        const by     = rowY - btnH / 2;
+        const active = currentMode === opt.value;
+        settingsRows[0].opts.push({ x: bx, y: by, w: btnW, h: btnH, value: opt.value });
+
+        const gd = ctx.createLinearGradient(bx, by, bx, by + btnH);
+        if (active) {
+            gd.addColorStop(0, '#00a8ff');
+            gd.addColorStop(1, '#0044aa');
+        } else {
+            gd.addColorStop(0, 'rgba(20,40,80,0.85)');
+            gd.addColorStop(1, 'rgba(10,20,50,0.85)');
+        }
+        ctx.fillStyle   = gd;
+        _rrect(ctx, bx, by, btnW, btnH, 8); ctx.fill();
+        ctx.strokeStyle = active ? 'rgba(0,220,255,0.90)' : 'rgba(60,120,200,0.40)';
+        ctx.lineWidth   = active ? 2 : 1.2;
+        _rrect(ctx, bx, by, btnW, btnH, 8); ctx.stroke();
+
+        ctx.font         = "bold 14px 'Exo 2', sans-serif";
+        ctx.fillStyle    = active ? '#ffffff' : 'rgba(140,180,230,0.65)';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(opt.label, bx + btnW / 2, by + btnH / 2);
+    });
+
+    // Store rows for click detection
+    game._settingsRows = settingsRows;
+
+    // ── Volume row ────────────────────────────────────────
+    const volRowY = rowY + 68;
+    ctx.font      = "bold 16px 'Exo 2', sans-serif";
+    ctx.fillStyle = 'rgba(180,220,255,0.85)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('Music Volume', pX + 28, volRowY);
+
+    const volPct = game.bgm ? game.bgm.volume : 0.4;
+    const trackW = pW - 56 - 120, trackH = 8;
+    const trackX = pX + 28, trackY = volRowY + 24;
+    ctx.fillStyle   = 'rgba(20,40,80,0.85)';
+    _rrect(ctx, trackX, trackY - trackH / 2, trackW, trackH, 4); ctx.fill();
+    ctx.fillStyle   = 'rgba(0,180,255,0.75)';
+    _rrect(ctx, trackX, trackY - trackH / 2, trackW * volPct, trackH, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(140,200,255,0.55)';
+    ctx.font      = "14px 'Exo 2', sans-serif";
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(volPct * 100)}%`, trackX + trackW + 10, trackY);
+
+    // ── Bottom hint ───────────────────────────────────────
+    ctx.font      = "13px 'Exo 2', sans-serif";
+    ctx.fillStyle = 'rgba(100,160,220,0.45)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Press ESC to close', W / 2, pY + pH - 22);
+
+    ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Shared rounded-rect helper (used by pause + settings)
+// ────────────────────────────────────────────────────────────────
+
+function _rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y,     x + w, y + r,     r);
+    ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h); ctx.arcTo(x,     y + h, x,     y + h - r, r);
+    ctx.lineTo(x, y + r); ctx.arcTo(x,     y,     x + r, y,         r);
+    ctx.closePath();
+}
+
+
+
 function countEdible(game) {
-    return (game.bgTinyfish ? game.bgTinyfish.length : 0)
-        + game.bgClownfish.length  + game.bgGoldfish.length
-        + game.bgSecondfish.length + game.bgTertiaryfish.length
-        + game.bgTunafish.length
-        + game.bgFuryfish.length   + game.bgEnemies.length;
+    // Stage clears when enemies are all dead — only count furyfish + bgEnemies
+    return game.bgFuryfish.length + game.bgEnemies.length;
 }

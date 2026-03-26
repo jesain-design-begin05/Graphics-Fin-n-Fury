@@ -12,15 +12,25 @@ function initAudio(game) {
     game.bgm.src = 'sounds/bgm.mp3';
     game.bgm.loop = true;
 
-    game.sfxVolume   = 0.9;
-    game.musicVolume = 0.7;
+    // Initialize volumes from DOM if available, otherwise use defaults
+    const sfxSlider   = document.getElementById('sfxVol');
+    const musicSlider = document.getElementById('musicVol');
+    game.sfxVolume   = sfxSlider   ? sfxSlider.value / 100   : 0.9;
+    game.musicVolume = musicSlider ? musicSlider.value / 100 : 0.7;
+
     updateSfxVolume(game);
     updateMusicVolume(game);
 
-    game.bgm.play().catch(() => {});
+    // Interaction listener to "unlock" audio (BGM and AudioContext)
+    const unlockAudio = () => {
+        if (game.audioCtx && game.audioCtx.state === 'suspended') game.audioCtx.resume();
+        if (game.bgm) game.bgm.play().catch(() => {});
+        window.removeEventListener('click', unlockAudio);
+        window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
 
-    const sfxSlider   = document.getElementById('sfxVol');
-    const musicSlider = document.getElementById('musicVol');
     if (sfxSlider)   sfxSlider.addEventListener('input',   () => updateSfxVolume(game));
     if (musicSlider) musicSlider.addEventListener('input', () => updateMusicVolume(game));
 }

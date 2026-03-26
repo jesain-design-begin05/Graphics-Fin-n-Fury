@@ -26,6 +26,9 @@ function initCamera(game) {
 
     // Camera top-left in world coords
     game.cam = { x: 0, y: 0 };
+
+    // Zoom starts at 1.0 (no zoom)
+    game.camZoom = 1.0;
 }
 
 /**
@@ -39,15 +42,10 @@ function updateCamera(game, dt) {
     const vW = game.canvas.width  / game.dpr;
     const vH = game.canvas.height / game.dpr;
 
-    // ── Dynamic zoom based on player size ─────────────────────
-    // playerSize range: 0.42 (start) → 1.85 (max)
-    // zoom range:       1.00 (tiny)  → 0.65 (large)
-    // Small Fin → zoom = 1.0 (normal, world fills screen)
-    // Large Fin → zoom = 0.65 (zoomed out, you see more of the world)
-    const SIZE_MIN  = 0.42;
-    const SIZE_MAX  = 1.85;
-    const ZOOM_BIG  = 1.00;   // zoom when Fin is tiny
-    const ZOOM_SMALL = 0.65;  // zoom when Fin is at max size
+    const SIZE_MIN   = 0.42;
+    const SIZE_MAX   = 1.85;
+    const ZOOM_BIG   = 1.00;   // zoom when Fin is tiny
+    const ZOOM_SMALL = 0.65;   // zoom when Fin is at max size
     const t = Math.max(0, Math.min(1, (game.playerSize - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)));
     const targetZoom = ZOOM_BIG + (ZOOM_SMALL - ZOOM_BIG) * t;
 
@@ -56,9 +54,8 @@ function updateCamera(game, dt) {
     game.camZoom += (targetZoom - game.camZoom) * Math.min(1, 3 * dt);
 
     // ── Camera follow ─────────────────────────────────────────
-    // The zoom is applied as a canvas scale in renderer.js.
-    // The camera world offset still uses the raw viewport size —
-    // the zoom effectively widens the visible world area.
+    // visW/visH = how much of the world is visible at current zoom.
+    // A zoom of 0.65 means the viewport shows MORE world (wider view).
     const visW = vW / game.camZoom;
     const visH = vH / game.camZoom;
 
@@ -69,13 +66,18 @@ function updateCamera(game, dt) {
     game.cam.x += (targetX - game.cam.x) * Math.min(1, LERP * dt);
     game.cam.y += (targetY - game.cam.y) * Math.min(1, LERP * dt);
 
-    // Clamp to world bounds
+    // Clamp so camera never shows outside world bounds
     game.cam.x = Math.max(0, Math.min(game.world.w - visW, game.cam.x));
     game.cam.y = Math.max(0, Math.min(game.world.h - visH, game.cam.y));
 }
 
 /**
- * Converts a world-space point to screen (canvas CSS) space.
+ * Converts a world-space point to screen (canvas CSS) space,
+ * accounting for the current camera offset AND zoom.
+ *
+ * renderer.js applies ctx.scale(camZoom, camZoom) before all
+ * world-space draw calls, so screen coords must reflect that:
+ *   screen = (world - cam) * zoom
  *
  * @param {GameSystem} game
  * @param {number} wx  World X
@@ -83,9 +85,10 @@ function updateCamera(game, dt) {
  * @returns {{ x: number, y: number }}
  */
 function worldToScreen(game, wx, wy) {
+    const zoom = game.camZoom || 1;
     return {
-        x: wx - game.cam.x,
-        y: wy - game.cam.y,
+        x: (wx - game.cam.x) * zoom,
+        y: (wy - game.cam.y) * zoom,
     };
 }
 
@@ -99,27 +102,36 @@ function worldToScreen(game, wx, wy) {
  * @returns {{ x: number, y: number }}
  */
 function screenToWorld(game, sx, sy) {
+    const zoom = game.camZoom || 1;
     return {
-        x: sx + game.cam.x,
-        y: sy + game.cam.y,
+        x: sx / zoom + game.cam.x,
+        y: sy / zoom + game.cam.y,
     };
 }
 
 /**
  * Returns true if a world-space circle is at least partially
  * visible in the current viewport (with a generous margin).
- * Use to cull draw calls for off-screen fish.
+ * Accounts for camZoom so culling stays accurate as zoom changes.
  *
  * @param {GameSystem} game
  * @param {number} wx   World X centre
  * @param {number} wy   World Y centre
- * @param {number} r    Radius
+ * @param {number} r    Radius (world space)
  * @returns {boolean}
  */
 function isOnScreen(game, wx, wy, r = 80) {
-    const vW = game.canvas.width  / game.dpr;
-    const vH = game.canvas.height / game.dpr;
-    const sx = wx - game.cam.x;
-    const sy = wy - game.cam.y;
-    return sx + r > 0 && sx - r < vW && sy + r > 0 && sy - r < vH;
+    const vW   = game.canvas.width  / game.dpr;
+    const vH   = game.canvas.height / game.dpr;
+    const zoom = game.camZoom || 1;
+
+    // Convert world pos → screen pos (same formula as worldToScreen)
+    const sx = (wx - game.cam.x) * zoom;
+    const sy = (wy - game.cam.y) * zoom;
+
+    // Scale the radius to screen space too so the margin stays correct
+    const sr = r * zoom;
+
+    return sx + sr > 0 && sx - sr < vW
+        && sy + sr > 0 && sy - sr < vH;
 }
