@@ -52,27 +52,37 @@ const WORLD_SCALE = 2.8;
 
 /* ================================================================
    STAGE STRUCTURE — 5 Paths × 3 Stages each = 15 stages total
+
+   Edible fish count: 10 at stage 1, +2 per stage (38 at stage 15).
+   Fury fish & enemies: unchanged from original design.
+   Fish type mix shifts progressively — tiny/small early,
+   medium/large dominate in later paths.
 ================================================================= */
 const STAGE_DEFS = {
-    1:  { tinyfish: 14, clownfish: 8,  goldfish: 6,  secondfish: 3,  enemies: 2 },
-    2:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, furyfish: 2, enemies: 3 },
-    3:  { tinyfish:  6, clownfish: 8,  goldfish: 6,  secondfish: 6,  tertiaryfish: 4, tunafish: 2, furyfish: 3, enemies: 4, hasBoss: true },
+    // ── Path 1: Kelp Forest (stages 1–3) — tiny + clownfish + goldfish ──
+    1:  { tinyfish:  5, clownfish: 3, goldfish:  2,                                                              enemies: 2                             },
+    2:  { tinyfish:  5, clownfish: 4, goldfish:  3,                                           furyfish: 2,       enemies: 3                             },
+    3:  { tinyfish:  4, clownfish: 4, goldfish:  3, secondfish: 2,             tunafish:  1,  furyfish: 3,       enemies: 4, hasBoss: true               },
 
-    4:  { tinyfish: 12, clownfish: 10, goldfish: 8,  secondfish: 6,  tertiaryfish: 4, enemies: 4 },
-    5:  { tinyfish:  8, clownfish: 12, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
-    6:  { tinyfish:  5, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 6, tunafish: 4, furyfish: 4, enemies: 5, hasBoss: true },
+    // ── Path 2: Abyssal Chasm (stages 4–6) — secondfish introduced ──────
+    4:  { tinyfish:  5, clownfish: 4, goldfish:  4, secondfish: 3,                                               enemies: 4                             },
+    5:  { tinyfish:  4, clownfish: 5, goldfish:  4, secondfish: 3, tertiaryfish: 2,           furyfish: 3,       enemies: 5                             },
+    6:  { tinyfish:  3, clownfish: 5, goldfish:  4, secondfish: 4, tertiaryfish: 3, tunafish:  1, furyfish: 4,   enemies: 5, hasBoss: true               },
 
-    7:  { tinyfish: 10, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 6, tunafish: 3, furyfish: 3, enemies: 5 },
-    8:  { tinyfish:  6, clownfish: 10, goldfish: 8,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 4, enemies: 6 },
-    9:  { tinyfish:  4, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 5, enemies: 6, hasBoss: true },
+    // ── Path 3: Kraken's Lair (stages 7–9) — tertiary + tunafish grow ───
+    7:  { tinyfish:  4, clownfish: 5, goldfish:  4, secondfish: 4, tertiaryfish: 3, tunafish:  2, furyfish: 3,   enemies: 5                             },
+    8:  { tinyfish:  3, clownfish: 5, goldfish:  4, secondfish: 4, tertiaryfish: 5, tunafish:  3, furyfish: 4,   enemies: 6                             },
+    9:  { tinyfish:  2, clownfish: 5, goldfish:  4, secondfish: 5, tertiaryfish: 5, tunafish:  5, furyfish: 5,   enemies: 6, hasBoss: true               },
 
-    10: { tinyfish:  8, clownfish: 8,  goldfish: 6,  secondfish: 8,  tertiaryfish: 8, tunafish: 5, furyfish: 4, enemies: 6 },
-    11: { tinyfish:  5, clownfish: 6,  goldfish: 5,  secondfish: 8,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
-    12: { tinyfish:  3, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 7, hasBoss: true },
+    // ── Path 4: Sunken Atlantis (stages 10–12) — sparse tiny, heavy mid/large
+    10: { tinyfish:  2, clownfish: 5, goldfish:  4, secondfish: 6, tertiaryfish: 6, tunafish:  5, furyfish: 4,   enemies: 6                             },
+    11: { tinyfish:  2, clownfish: 4, goldfish:  4, secondfish: 6, tertiaryfish: 7, tunafish:  7, furyfish: 5,   enemies: 7                             },
+    12: { tinyfish:  1, clownfish: 4, goldfish:  3, secondfish: 6, tertiaryfish: 8, tunafish: 10, furyfish: 6,   enemies: 7, hasBoss: true               },
 
-    13: { tinyfish:  6, clownfish: 5,  goldfish: 4,  secondfish: 6,  tertiaryfish: 8, tunafish: 6, furyfish: 5, enemies: 7 },
-    14: { tinyfish:  4, clownfish: 4,  goldfish: 3,  secondfish: 5,  tertiaryfish: 8, tunafish: 7, furyfish: 6, enemies: 8 },
-    15: { tinyfish:  2, clownfish: 4,  goldfish: 3,  tunafish: 6,    furyfish: 7,     enemies: 8, hasBoss: true },
+    // ── Path 5: Volcanic Vent (stages 13–15) — max large fish, minimal tiny
+    13: { tinyfish:  1, clownfish: 4, goldfish:  3, secondfish: 6, tertiaryfish: 9, tunafish: 11, furyfish: 5,   enemies: 7                             },
+    14: { tinyfish:  1, clownfish: 3, goldfish:  3, secondfish: 6, tertiaryfish:10, tunafish: 13, furyfish: 6,   enemies: 8                             },
+    15: { tinyfish:  1, clownfish: 3, goldfish:  2, secondfish: 6, tertiaryfish:11, tunafish: 15, furyfish: 7,   enemies: 8, hasBoss: true               },
 };
 
 /* ================================================================

@@ -60,6 +60,7 @@ class GameSystem {
         this.clams          = [];
         this.floatingTexts  = [];
         this.particles      = [];
+        this.bubbleTexts    = [];   // ← eat-bubble messages
 
         this.boss         = null;
         this.bossDefeated = false;
@@ -67,6 +68,7 @@ class GameSystem {
         // Player
         this.fishX          = 0;
         this.fishY          = 0;
+        this.fishVx         = 0;   // ← horizontal velocity, used by bubble-text facing
         this.fishMoving     = false;
         this.fishFacingLeft = true;
         this.fishAttacking  = false;
@@ -97,6 +99,10 @@ class GameSystem {
         this.cam   = { x: 0, y: 0 };
         this.world = { w: 0, h: 0 };
 
+        // Vertical offset applied to Fin's start Y and respawn target Y
+        // so the play area sits lower inside the visible map circle.
+        this.mapCircleYOffset = 200;  // plain number — NOT a function
+
         // ── Init ──────────────────────────────────────────────
         initAudio(this);
         this.bgm = this.bgm || null;  // set by initAudio
@@ -117,14 +123,17 @@ class GameSystem {
 
         initCamera(this);
 
+        // Player start position — apply mapCircleYOffset (number, not function)
         this.fishX = this.world.w / 2;
-        this.fishY = this.world.h / 2;
+        this.fishY = this.world.h / 2 + this.mapCircleYOffset;
 
+        // Camera centered on player
         this.cam.x = Math.max(0, Math.min(this.world.w - vW, this.fishX - vW / 2));
         this.cam.y = Math.max(0, Math.min(this.world.h - vH, this.fishY - vH / 2));
 
         this.projectiles    = [];
         this.floatingTexts  = [];
+        this.bubbleTexts    = [];
         this.stageClear      = false;
         this.stageClearTimer = 0;
         this.stageClearInfo  = null;
@@ -139,11 +148,12 @@ class GameSystem {
         this.respawnTimer    = 0;
         this.damageCooldown  = 0;
         this.lastEatTime     = -100;
+        this.fishVx          = 0;
 
         spawnStageEntities(this);
         spawnParticles(this);
 
-        // Apply CSS background class for this stage (maps_and_stages.css)
+        // Apply CSS background class for this stage
         applyBgClass(this);
 
         this.stageIntroActive = true;
@@ -155,6 +165,7 @@ class GameSystem {
         const dt = Math.min((ts - this.lastTime) / 1000, 0.05);
         this.lastTime = ts;
         this.elapsed += dt;
+        this._lastDt = dt;   // stored so renderer can pass correct dt to drawBubbleTexts
 
         if (!this.gameOver && !this.stageClear) {
             this._update(dt);
@@ -163,12 +174,13 @@ class GameSystem {
             if (this.stageClearTimer > 3.5) this._nextStage();
         }
 
+        // drawFrame lives in renderer.js — it handles ALL canvas drawing
         drawFrame(this);
 
         // Overlays drawn on top
-        if (this.gameOver)      drawGameOver(this);
-        if (this.stageClear)    drawStageClearScreen(this);
-        if (this.isEaten)       drawEatenScreen(this);
+        if (this.gameOver)   drawGameOver(this);
+        if (this.stageClear) drawStageClearScreen(this);
+        if (this.isEaten)    drawEatenScreen(this);
 
         requestAnimationFrame(ts2 => this._animate(ts2));
     }
@@ -190,16 +202,15 @@ class GameSystem {
         if (this.isRespawning) {
             this.respawnTimer += dt;
             const t = Math.min(this.respawnTimer / RESPAWN_FALL_DURATION, 1.0);
-            // Ease-in: quadratic — starts slow, accelerates like gravity
             const eased = t * t;
             this.fishY = this.respawnStartY + (this.respawnTargetY - this.respawnStartY) * eased;
             updateCamera(this, dt);
             if (this.respawnTimer >= RESPAWN_FALL_DURATION) {
                 this.isRespawning   = false;
                 this.fishY          = this.respawnTargetY;
-                this.damageCooldown = 2.0; // brief invincibility after landing
+                this.damageCooldown = 2.0;
             }
-            return; // still frozen except camera + fall
+            return;
         }
 
         if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.comboCount = 0; }
@@ -214,10 +225,11 @@ class GameSystem {
         applyMouseMovement(this, dt);
         applyKeyboardMovement(this, dt);
 
+        // Track fishVx (used by bubble-text to know which way Fin is facing)
+        // fishFacingLeft is already maintained by the input system, so derive from it.
+        this.fishVx = this.fishFacingLeft ? -1 : 1;
+
         // ── Player world-edge wrap (X axis) ───────────────────
-        // Exit right side of the WORLD → reappear at world left
-        // Exit left  side of the WORLD → reappear at world right
-        // This matches how fish wrap in entities.js
         const wrapMargin = 40;
         if (this.fishX > this.world.w - wrapMargin) {
             this.fishX = wrapMargin + 10;
@@ -242,7 +254,7 @@ class GameSystem {
         updateEdibleFish(this, dt);
         updateFuryfish(this, dt);
         updateEnemies(this, dt);
-        updateMantaRay(this, dt);     
+        updateMantaRay(this, dt);
         if (this.boss && !this.bossDefeated) updateBoss(this, dt);
 
         checkCollisions(this);
@@ -261,11 +273,6 @@ class GameSystem {
 
     // ── Eaten / respawn ───────────────────────────────────────
 
-    /**
-     * Called by collisions when a fish's mouth touches Fin.
-     * Fin disappears instantly — no pre-animation.
-     * Then shows the eaten screen with attempts + countdown.
-     */
     _startBeingEaten(fish) {
         if (this.isEaten || this.isRespawning) return;
         this.damageCooldown = 3.0;
@@ -273,14 +280,10 @@ class GameSystem {
         this._triggerEaten();
     }
 
-    /**
-     * Called after being-eaten animation completes.
-     * Deducts attempt, triggers game-over or countdown screen.
-     */
     _triggerEaten() {
         this.attempts--;
         this.stageDamaged  = true;
-        this.hitFlashTimer = 0;        // no red flash — the animation already played
+        this.hitFlashTimer = 0;
 
         if (this.attempts <= 0) {
             this.gameOver = true;
@@ -294,18 +297,16 @@ class GameSystem {
         }
     }
 
-    /** Transition from eaten countdown → respawn fall */
     _startRespawn() {
         const vH = this.canvas.height / this.dpr;
         this.isEaten      = false;
         this.isRespawning = true;
         this.respawnTimer = 0;
 
-        // Fin spawns above the visible screen, then falls to mid-water
-        this.fishX        = this.world.w / 2;
-        this.respawnStartY = this.cam.y - 80;   // above top of screen
-        this.respawnTargetY = this.cam.y + vH * 0.45; // mid-water landing spot
-        this.fishY        = this.respawnStartY;
+        this.fishX         = this.world.w / 2;
+        this.respawnStartY  = this.cam.y - 80;
+        this.respawnTargetY = this.cam.y + vH * 0.45;
+        this.fishY         = this.respawnStartY;
         this.fishFacingLeft = true;
     }
 
@@ -391,6 +392,7 @@ class GameSystem {
         this.isEaten     = false;
         this.isRespawning = false;
         this.particles   = [];
+        this.bubbleTexts = [];
         if (this.bgm) { this.bgm.currentTime = 0; this.bgm.play().catch(()=>{}); }
         this._initStage();
     }

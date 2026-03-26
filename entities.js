@@ -44,6 +44,7 @@ function spawnStageEntities(game) {
     game.bossDefeated   = false;
 
     // ── Manta ray — slow background glider, top/mid area ─────
+    // Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
     game.mantaRay = {
         x:          Math.random() * W,
         y:          H * 0.10 + Math.random() * H * 0.20, // 10%–30% down
@@ -52,8 +53,8 @@ function spawnStageEntities(game) {
         frameCol:   0,
         frameRow:   0,
         frameTimer: 0,
-        COLS: 3,
-        ROWS: 3,
+        COLS: 4,         // 4 frames across
+        ROWS: 2,         // 2 rows
     };
 
     const mkDef = (type, yMin, yMax, extra) => makeFish(
@@ -111,28 +112,17 @@ function spawnParticles(game) {
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Screen-edge wrap helper
-//  Fish wrap at the viewport edges so they always pass through
-//  the visible screen, appearing on the opposite side.
-//  margin = how far off-screen before teleporting (px, world space)
-// ────────────────────────────────────────────────────────────────
-
-// ────────────────────────────────────────────────────────────────
 //  Fish world-edge wrap
 //  Fish exit the right edge of the WORLD → reappear at world left
 //  Fish exit the left  edge of the WORLD → reappear at world right
-//  This means as the camera pans, fish swim across the entire world
-//  and always reappear on the opposite side.
 // ────────────────────────────────────────────────────────────────
 
 function _screenWrapX(f, game, margin = 60) {
     const W = game.world.w;
 
     if (f.vx > 0 && f.x > W - margin) {
-        // Exited right world edge → reappear at left world edge
         f.x = margin + 10;
     } else if (f.vx < 0 && f.x < margin) {
-        // Exited left world edge → reappear at right world edge
         f.x = W - margin - 10;
     }
 
@@ -240,6 +230,7 @@ function updateBoss(game, dt) {
 
 // ────────────────────────────────────────────────────────────────
 //  Manta ray — slow gliding background creature, top/mid water
+//  Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
 // ────────────────────────────────────────────────────────────────
 
 function updateMantaRay(game, dt) {
@@ -251,7 +242,7 @@ function updateMantaRay(game, dt) {
     if (m.frameTimer >= 0.12) {
         m.frameTimer = 0;
         m.frameCol = (m.frameCol + 1) % m.COLS;
-        // Advance row after each full column cycle (loops all 9 frames)
+        // Advance row after each full column cycle (loops all 8 frames)
         if (m.frameCol === 0) m.frameRow = (m.frameRow + 1) % m.ROWS;
     }
 
@@ -290,24 +281,17 @@ function spawnDecorations(game) {
     ];
 
     // ── Seaweed — 1 to 3 clumps per stage, random X along the floor ──
-    // Count is re-rolled every stage so density varies between paths/stages.
     const seaweedCount = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
-
-    // Divide the world width into equal zones so they never clump together.
-    // Each zone gets one seaweed placed at a random X within that zone.
     const zoneW = W / seaweedCount;
     for (let i = 0; i < seaweedCount; i++) {
         const zoneStart = zoneW * i;
-        // Keep away from the very edges (10% margin each side of the zone)
         const safeStart = zoneStart + zoneW * 0.10;
         const safeRange = zoneW * 0.80;
         game.decoItems.push({
             type:  'seaweed',
             x:     safeStart + Math.random() * safeRange,
-            // Y sits right at the sea floor — same band as seagrass/corals
             y:     H * 0.88 + Math.random() * H * 0.05,
-            // Scale varies a little so each clump looks slightly different
-            scale: 0.55 + Math.random() * 0.25,   // 0.55 – 0.80
+            scale: 0.55 + Math.random() * 0.25,
         });
     }
 }

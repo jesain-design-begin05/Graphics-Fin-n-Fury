@@ -34,10 +34,13 @@ function initSpriteContainers(game) {
     // Fin  (4 cols × 4 rows): row0=idle-L, row1=swim-L, row2=attack-L, row3=shoot-L
     // All rows face LEFT naturally — renderer flips for right-facing
     game.finSheet  = null;
-    // Fury (4 cols × 5 rows): row0=idle-L, row1=swim-L, row2=aggro-L, row3=attack-L, row4=charge-L
+    // Fury (3 cols × 2 rows): row0=patrol-L, row1=attack-L
     game.furySheet = null;
     // Boss image (bigguy.jpg)
     game.bossImg   = null;
+
+    // ── Manta ray ─────────────────────────────────────────────
+    game.mantaRayImg = null;       // manta.png  (4 cols × 2 rows = 8 frames, faces left)
 
     game.clamSprite       = {};
     game.pearlSprite      = null;
@@ -54,9 +57,6 @@ function initSpriteContainers(game) {
     game.decoSeaweed     = null;   // ← seaweed_sprite.png
     game.clamClosedSprite = null;  // pearl.png  = clam closed
     game.clamOpenSprite   = null;  // pearl1_2.png = clam open with pearl
-
-    // ── Manta ray ─────────────────────────────────────────────
-    game.mantaRayImg = null;       // manta_ray.png  (3 cols × 3 rows)
 }
 
 /**
@@ -133,9 +133,9 @@ function loadSprites(game) {
     game.clamClosedSprite = img(); game.clamClosedSprite.src = 'pearl.png';
     game.clamOpenSprite   = img(); game.clamOpenSprite.src   = 'pearl1_2.png';
 
-    // ── Manta ray sprite sheet (3 cols × 3 rows = 9 frames) ──
+    // ── Manta ray sprite sheet (4 cols × 2 rows = 8 frames, faces left) ──
     game.mantaRayImg = img();
-    game.mantaRayImg.src = 'element_sprites/manta_ray.png';
+    game.mantaRayImg.src = 'element_sprites/manta.png';
 
     // ── Projectile frames (8 frames, zero-padded) ─────────────
     for (let f = 1; f <= 8; f++) {

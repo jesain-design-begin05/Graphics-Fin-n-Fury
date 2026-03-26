@@ -141,12 +141,14 @@ html, body {
 /* Outer wrapper — sets hit area and anchors the circle */
 .map-stage-btn {
   position: relative;
+  top: 50px;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
   outline: none;
-  width: 6.5vw;
+  width: fit-content;   /* ✅ shrink to content */
+  height: fit-content;  
   max-width: 68px;
   min-width: 42px;
   aspect-ratio: 1 / 1;
@@ -156,8 +158,8 @@ html, body {
 /* ── Filled disc (default) ── */
 .stage-circle {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 75%;
+  height: 75%;
   border-radius: 50%;
   background-color: var(--stage-color, #4FC3F7);
   box-shadow:
@@ -360,7 +362,7 @@ html, body {
       <div class="map-bubbles" id="mapBubbles"></div>
 
       <!-- Path 1 · Kelp Forests — seaweed grove, centre-left -->
-      <div class="map-stage ms-1" style="left:38%;top:38%;">
+      <div class="map-stage ms-1" style="left:36%;top:45%;">
         <button class="map-stage-btn"
                 data-stage="1"
                 data-label="Path 1 · Kelp Forests (Stages 1–3)"
@@ -376,7 +378,7 @@ html, body {
       </div>
 
       <!-- Path 2 · Abyssal Chasm — dark trench in the middle -->
-      <div class="map-stage ms-2" style="left:57%;top:60%;">
+      <div class="map-stage ms-2" style="left:56%;top:77%;">
         <button class="map-stage-btn"
                 data-stage="2"
                 data-label="Path 2 · Abyssal Chasm (Stages 4–6)"
@@ -392,7 +394,7 @@ html, body {
       </div>
 
       <!-- Path 3 · Kraken's Lair — ON the kraken, top-left cave -->
-      <div class="map-stage ms-3" style="left:14%;top:25%;">
+      <div class="map-stage ms-3" style="left:18%;top:25%;">
         <button class="map-stage-btn"
                 data-stage="3"
                 data-label="Path 3 · Kraken's Lair (Stages 7–9)"
@@ -408,7 +410,7 @@ html, body {
       </div>
 
       <!-- Path 4 · Sunken Atlantis — Greek temple ruins, far right -->
-      <div class="map-stage ms-4" style="left:88%;top:22%;">
+      <div class="map-stage ms-4" style="left:83%;top:23%;">
         <button class="map-stage-btn"
                 data-stage="4"
                 data-label="Path 4 · Sunken Atlantis (Stages 10–12)"
@@ -424,7 +426,7 @@ html, body {
       </div>
 
       <!-- Path 5 · Bubbling Volcanoes — ON the erupting volcano -->
-      <div class="map-stage ms-5" style="left:76%;top:52%;">
+      <div class="map-stage ms-5" style="left:74%;top:53%;">
         <button class="map-stage-btn"
                 data-stage="5"
                 data-label="Path 5 · Bubbling Volcanoes (Stages 13–15)"

@@ -219,8 +219,7 @@ function _checkEatFish(game, pr, rank) {
 
                 // ── Bubble text RIGHT at Fin's mouth ──────────
                 // Try every common velocity variable name as a fallback chain.
-                const finVx = game.fishVx ?? game.vx ?? game.playerVx ?? game.velX ?? 1;
-                _spawnBubbleText(game, game.fishX, game.fishY, finVx, pr);
+                spawnEatBubble(game);
 
                 playSound(game, 'eat');
             } else if (fishEatsFin) {

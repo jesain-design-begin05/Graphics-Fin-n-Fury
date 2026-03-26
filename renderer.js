@@ -21,10 +21,6 @@ function drawFrame(game) {
     // Canvas background-color shows through clearRect — no draw needed.
 
     // ── Dynamic zoom: scale world around viewport centre ─────────
-    // zoom = 1.0 when Fin is tiny (normal close view)
-    // zoom = 0.65 when Fin is at max size (zoomed out, see more world)
-    // Only world-space draws are inside this transform — HUD is drawn
-    // after ctx.restore() so it stays at fixed screen size.
     const zoom = game.camZoom || 1.0;
     ctx.save();
     ctx.translate(vW / 2, vH / 2);
@@ -40,6 +36,7 @@ function drawFrame(game) {
     drawProjectiles(game, ctx);
     drawPlayerFish(game, ctx);
     drawFloatingTexts(game, ctx);
+    drawBubbleTexts(ctx, game, game._lastDt || 0.016);   // ← eat-bubble speech clouds
 
     // ── Foreground layer ──
     // (CSS background has no separate fg layer — decorations handle foreground detail)
@@ -88,6 +85,7 @@ function drawAtmosphere(game, ctx, W, H) {
 
 // ────────────────────────────────────────────────────────────────
 //  Manta ray — slow background glider, top/mid water
+//  Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
 // ────────────────────────────────────────────────────────────────
 
 function drawMantaRay(game, ctx) {
@@ -96,7 +94,7 @@ function drawMantaRay(game, ctx) {
     const img = game.mantaRayImg;
     if (!img || !img.complete || img.naturalWidth === 0) return;
 
-    // Sprite sheet: 3 cols × 3 rows = 9 frames total
+    // Sheet: 4 cols × 2 rows = 8 frames, sprite faces LEFT naturally
     const frameW = img.naturalWidth  / m.COLS;
     const frameH = img.naturalHeight / m.ROWS;
     const scale  = 0.55; // adjust to taste
@@ -104,20 +102,21 @@ function drawMantaRay(game, ctx) {
     const drawH  = frameH * scale;
 
     const s   = worldToScreen(game, m.x, m.y);
-    const bob = Math.sin(game.elapsed * 0.8 + m.bobOffset) * 10; // gentle glide bob
+    const bob = Math.sin(game.elapsed * 0.8 + m.bobOffset) * 10;
     const sx  = m.frameCol * frameW;
     const sy  = m.frameRow * frameH;
 
     ctx.save();
     ctx.globalAlpha = 0.88; // slightly translucent — feels like background depth
 
-    if (m.vx > 0) {
-        // Sprite naturally faces left — flip horizontally for rightward travel
+    if (m.vx < 0) {
+        // Swimming left — sprite naturally faces left, draw normally
+        ctx.drawImage(img, sx, sy, frameW, frameH, s.x - drawW / 2, s.y - drawH / 2 + bob, drawW, drawH);
+    } else {
+        // Swimming right — flip horizontally
         ctx.translate(s.x, s.y + bob);
         ctx.scale(-1, 1);
         ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH / 2, drawW, drawH);
-    } else {
-        ctx.drawImage(img, sx, sy, frameW, frameH, s.x - drawW / 2, s.y - drawH / 2 + bob, drawW, drawH);
     }
 
     ctx.restore();
@@ -137,7 +136,7 @@ function drawDecorations(game, ctx) {
         let img   = null;
         let alpha = 1.0;
         let bob   = 0;
-        let sway  = 0;  // rotation angle in radians for swaying items
+        let sway  = 0;
 
         switch (d.type) {
             case 'boat':
@@ -159,15 +158,11 @@ function drawDecorations(game, ctx) {
                 sway = Math.sin(e * 1.2  + d.x * 0.011) * 0.10
                      + Math.sin(e * 2.1  + d.x * 0.019) * 0.035;
                 break;
-
-            // ── Seaweed — taller, stronger sway than seagrass ──────────
             case 'seaweed':
                 img  = game.decoSeaweed;
-                // Slightly slower, deeper sway than seagrass — feels heavier
                 sway = Math.sin(e * 0.95 + d.x * 0.010) * 0.13
                      + Math.sin(e * 1.85 + d.x * 0.018) * 0.045;
                 break;
-
             case 'fishshadow':
                 img   = game.decoFishShadow;
                 alpha = 0.22 + Math.sin(e * 0.4) * 0.06;
@@ -185,7 +180,6 @@ function drawDecorations(game, ctx) {
         ctx.globalAlpha = alpha;
 
         if (sway !== 0) {
-            // Rotate around the bottom-centre of the sprite (ground anchor point)
             const baseX = s.x;
             const baseY = s.y + h / 2;
             ctx.translate(baseX, baseY);
@@ -263,11 +257,9 @@ function drawBgFish(game, ctx) {
     drawSet(game.bgTunafish,     game.tunafishRestLeft,   game.tunafishRestRight,   game.tunafishSwimLeft,   game.tunafishSwimRight,   FISH_SCALE.tunafish,   3);
 
     // ── Furyfish + Enemy — furyfish.png (3 cols × 2 rows) ───────
-    // Row 0 = patrol, Row 1 = attack.
-    // No 'screen' blend — use clip to bound frame, draw normally.
     const fSheet        = game.furySheet;
     const hasFSheet     = fSheet && fSheet.complete && fSheet.naturalWidth > 0;
-    const FURY_SHEET_SCALE = 0.38;   // tuned down — fish was too large
+    const FURY_SHEET_SCALE = 0.38;
     {
         const FURY_SC = FISH_SCALE.furyfish;
 
@@ -290,11 +282,9 @@ function drawBgFish(game, ctx) {
             if (hasFSheet) {
                 const col = Math.floor((e * 8 + f.frameOffset) % FURY_COLS);
                 const row = f.isAttacking ? FURY_ROW_ATTACK : FURY_ROW_PATROL;
-                // Clip to frame bounds — prevents bleeding to adjacent cells
                 ctx.beginPath();
                 ctx.rect(-dw / 2, -dh / 2, dw, dh);
                 ctx.clip();
-                // Sheet faces LEFT — flip for right-facing
                 if (!isL) ctx.scale(-1, 1);
                 _drawFrame(ctx, fSheet, col, row, FURY_COLS, FURY_ROWS, dw, dh);
             } else {
@@ -419,11 +409,8 @@ const SCOLS      = 4;   // Fin sheet columns
 const FIN_ROWS   = 4;
 
 // ── furyfish.png: 3 cols × 2 rows ────────────────────────────
-// Row 0 = patrol (mouth slightly open)
-// Row 1 = attack (mouth wide open / chomp)
-// All frames face LEFT — flip ctx for right-facing
-const FURY_COLS      = 3;
-const FURY_ROWS      = 2;
+const FURY_COLS       = 3;
+const FURY_ROWS       = 2;
 const FURY_ROW_PATROL = 0;
 const FURY_ROW_ATTACK = 1;
 
