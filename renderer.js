@@ -32,6 +32,7 @@ function drawFrame(game) {
     drawDecorations(game, ctx);
     drawBgFish(game, ctx);
     drawBoss(game, ctx);
+    drawKingCrab(game, ctx);        // ← King Crab boss (Stage 3)
     drawCollectibles(game, ctx);
     drawProjectiles(game, ctx);
     drawPlayerFish(game, ctx);
@@ -300,6 +301,23 @@ function drawBgFish(game, ctx) {
                 }
             }
             ctx.restore();
+
+            // ── Furyfish HP bar ───────────────────────────────
+            if (f.hp != null && f.maxHp != null) {
+                const barW = dw * 0.8, barH = 6;
+                const barX = s.x - barW / 2;
+                const barY = s.y - dh / 2 - 12 + bob;
+                const pct  = Math.max(0, f.hp / f.maxHp);
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillRect(barX, barY, barW, barH);
+                ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : `rgb(${Math.floor(220*(1-pct)+30)},${Math.floor(180*pct)},20)`;
+                ctx.fillRect(barX, barY, barW * pct, barH);
+                ctx.strokeStyle = 'rgba(255,80,0,0.7)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barW, barH);
+                ctx.restore();
+            }
         }
     }
 
@@ -333,6 +351,23 @@ function drawBgFish(game, ctx) {
             }
         }
         ctx.restore();
+
+        // ── Enemy HP bar ──────────────────────────────────────
+        if (f.hp != null && f.maxHp != null) {
+            const barW = dw * 0.8, barH = 6;
+            const barX = s.x - barW / 2;
+            const barY = s.y - dh / 2 - 12 + bob;
+            const pct  = Math.max(0, f.hp / f.maxHp);
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(barX, barY, barW, barH);
+            ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : `rgb(${Math.floor(220*(1-pct)+30)},${Math.floor(180*pct)},20)`;
+            ctx.fillRect(barX, barY, barW * pct, barH);
+            ctx.strokeStyle = 'rgba(255,120,0,0.7)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, barY, barW, barH);
+            ctx.restore();
+        }
     }
 }
 
@@ -397,6 +432,56 @@ function drawBoss(game, ctx) {
         ctx.beginPath(); ctx.arc(s.x, s.y, 85, 0, Math.PI * 2); ctx.stroke();
         ctx.restore();
     }
+    ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  King Crab Boss (Stage 3)
+//  Sheet: kingcrab.png — 4 cols × 4 rows
+//    row 0 = idle/walk  row 1 = claw-swipe  row 2 = fire-burst  row 3 = hurt
+// ────────────────────────────────────────────────────────────────
+
+const KC_SHEET_COLS  = 4;
+const KC_SHEET_ROWS  = 4;
+const KC_SHEET_SCALE = 0.52;
+
+function drawKingCrab(game, ctx) {
+    const kc = game.kingCrab;
+    if (!kc || kc.defeated) return;
+    if (!isOnScreen(game, kc.x, kc.y, 300)) return;
+
+    const sheet = game.kingCrabSheet;
+    if (!sheet || !sheet.complete || sheet.naturalWidth === 0) return;
+
+    const e     = game.elapsed;
+    const s     = worldToScreen(game, kc.x, kc.y);
+    const fw    = sheet.naturalWidth  / KC_SHEET_COLS;
+    const fh    = sheet.naturalHeight / KC_SHEET_ROWS;
+    const scale = KC_SHEET_SCALE * FISH_SCALE.kingCrab;
+    const dw    = fw * scale;
+    const dh    = fh * scale;
+    const bob   = kc.clawActive ? 0 : Math.sin(e * 1.8 + kc.bobOffset) * 10;
+    const sx    = kc.frameCol * fw;
+    const sy    = kc.frameRow * fh;
+
+    ctx.save();
+    ctx.translate(s.x, s.y + bob);
+
+    // Hit flash
+    if (kc.hitFlash > 0) {
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur  = 55;
+    }
+    // Claw attack glow
+    if (kc.clawActive) {
+        ctx.shadowColor = `rgba(255,80,0,${0.5 + Math.sin(e * 12) * 0.3})`;
+        ctx.shadowBlur  = 30 + Math.sin(e * 12) * 10;
+    }
+
+    // Flip horizontally when facing right
+    if (!kc.facingLeft) ctx.scale(-1, 1);
+
+    ctx.drawImage(sheet, sx, sy, fw, fh, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
 }
 
@@ -742,7 +827,10 @@ function drawHUD(game, ctx, W, H) {
     ctx.restore();
 
     const pearlCol = game.hasPearlPower ? '#00c8ff' : '#888';
-    const pearlTxt = game.hasPearlPower ? '🦪 PEARL READY (CLICK / SPACE)' : '🦪 Find a clam to shoot!';
+    const shotsLeft = game.pearlShotsLeft ?? 0;
+    const pearlTxt = game.hasPearlPower
+        ? `🦪 PEARL READY — ${shotsLeft} shot${shotsLeft !== 1 ? 's' : ''} left (CLICK / SPACE)`
+        : '🦪 Find a clam to shoot!';
     ctx.save();
     ctx.shadowColor = game.hasPearlPower ? '#00c8ff' : 'transparent'; ctx.shadowBlur = 6;
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
@@ -750,11 +838,27 @@ function drawHUD(game, ctx, W, H) {
     ctx.strokeText(pearlTxt, 40, 168); ctx.fillStyle = pearlCol; ctx.fillText(pearlTxt, 40, 168);
     ctx.restore();
 
-    const rem    = countEdible(game);
-    const remTxt = rem > 0
-        ? `🐟 EAT ${rem} MORE FISH`
-        : (game.boss && !game.bossDefeated ? '🔥 DEFEAT THE BOSS!' : '✅ STAGE CLEAR!');
-    const remCol = rem > 0 ? '#80ffb0' : (game.boss && !game.bossDefeated ? '#ff8040' : '#ffd060');
+    const rem       = countEdible(game);
+    const remFish   = (game.bgTinyfish ? game.bgTinyfish.length : 0)
+                    + game.bgClownfish.length + game.bgGoldfish.length
+                    + game.bgSecondfish.length + game.bgTertiaryfish.length
+                    + game.bgTunafish.length;
+    const remEnemies = game.bgFuryfish.length + game.bgEnemies.length;
+    const hasBoss = (game.boss && !game.bossDefeated) || (game.kingCrab && !game.kingCrab.defeated);
+    let remTxt, remCol;
+    if (rem > 0) {
+        const parts = [];
+        if (remFish   > 0) parts.push(`🐟 ${remFish} fish`);
+        if (remEnemies > 0) parts.push(`💀 ${remEnemies} enemy`);
+        remTxt = 'EAT: ' + parts.join('  ');
+        remCol = '#80ffb0';
+    } else if (hasBoss) {
+        remTxt = '🔥 DEFEAT THE BOSS!';
+        remCol = '#ff8040';
+    } else {
+        remTxt = '✅ STAGE CLEAR!';
+        remCol = '#ffd060';
+    }
     ctx.save();
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
     ctx.font = "bold 15px 'Bangers', cursive"; ctx.textAlign = 'left';
@@ -777,6 +881,51 @@ function drawHUD(game, ctx, W, H) {
         ctx.fillRect(barX + 2, barY + 2, Math.max(0, (barW - 4) * pct), barH - 4);
         ctx.fillStyle = '#fff'; ctx.font = "bold 14px 'Exo 2', sans-serif";
         ctx.fillText(`${game.boss.hp} / ${game.boss.maxHp}`, W / 2, barY + barH - 5);
+        ctx.restore();
+    }
+
+    // ── King Crab HP bar (centre-top) + Fin HP bar (below it) ─
+    const kc = game.kingCrab;
+    if (kc && !kc.defeated) {
+        const barW = 320, barH = 22;
+        const barX = (W - barW) / 2;
+
+        // King Crab bar
+        const kcBarY = 24;
+        const kcPct  = Math.max(0, kc.hp / kc.maxHp);
+        ctx.save();
+        ctx.font = "bold 18px 'Bangers', cursive"; ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff4040'; ctx.shadowColor = '#ff2020'; ctx.shadowBlur = 10;
+        ctx.fillText('👑 KING CRAB', W / 2, kcBarY - 4);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(barX, kcBarY, barW, barH);
+        ctx.strokeStyle = '#ff4040'; ctx.lineWidth = 2; ctx.strokeRect(barX, kcBarY, barW, barH);
+        const bp = 0.5 + Math.sin(game.elapsed * 6) * 0.5;
+        ctx.fillStyle = `rgb(${Math.floor(200+55*bp)},${Math.floor(20+60*(1-kcPct))},20)`;
+        ctx.fillRect(barX + 2, kcBarY + 2, Math.max(0, (barW - 4) * kcPct), barH - 4);
+        ctx.fillStyle = '#fff'; ctx.font = "bold 14px 'Exo 2', sans-serif";
+        ctx.fillText(`${kc.hp} / ${kc.maxHp}`, W / 2, kcBarY + barH - 5);
+        ctx.restore();
+
+        // Fin HP bar (below King Crab bar)
+        const finHp    = game.finHp    ?? FIN_MAX_HP;
+        const finMaxHp = game.finMaxHp ?? FIN_MAX_HP;
+        const finBarY  = kcBarY + barH + 8;
+        const finPct   = Math.max(0, finHp / finMaxHp);
+        ctx.save();
+        ctx.font = "bold 14px 'Bangers', cursive"; ctx.textAlign = 'center';
+        ctx.fillStyle = '#80ffb0'; ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 6;
+        ctx.fillText('🐟 FIN HP', W / 2, finBarY - 3);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(barX, finBarY, barW, barH);
+        ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2; ctx.strokeRect(barX, finBarY, barW, barH);
+        // HP bar colour shifts red as HP drops
+        const hpR = Math.floor(50 + 200 * (1 - finPct));
+        const hpG = Math.floor(230 * finPct);
+        ctx.fillStyle = `rgb(${hpR},${hpG},80)`;
+        ctx.fillRect(barX + 2, finBarY + 2, Math.max(0, (barW - 4) * finPct), barH - 4);
+        ctx.fillStyle = '#fff'; ctx.font = "bold 14px 'Exo 2', sans-serif";
+        ctx.fillText(`${finHp} / ${finMaxHp}`, W / 2, finBarY + barH - 5);
         ctx.restore();
     }
 
@@ -1109,5 +1258,6 @@ function countEdible(game) {
     return (game.bgTinyfish ? game.bgTinyfish.length : 0)
         + game.bgClownfish.length  + game.bgGoldfish.length
         + game.bgSecondfish.length + game.bgTertiaryfish.length
-        + game.bgTunafish.length;
+        + game.bgTunafish.length
+        + game.bgFuryfish.length   + game.bgEnemies.length;
 }

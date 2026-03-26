@@ -32,6 +32,8 @@ class GameSystem {
         this.highScore = parseInt(localStorage.getItem('finNFury_highScore') || '0');
         this.playerSize    = PLAYER_START_SIZE;
         this.hasPearlPower = false;
+        this.pearlShotsLeft    = 0;        // shots remaining from current pearl
+        this.pearlFireTimer    = 0;        // cooldown between shots
         this.gameOver      = false;
 
         this.stageTime    = 0;
@@ -142,6 +144,8 @@ class GameSystem {
         this.comboCount      = 0;
         this.comboTimer      = 0;
         this.hasPearlPower   = false;
+        this.pearlShotsLeft  = 0;
+        this.pearlFireTimer  = 0;
         this.isEaten         = false;
         this.isRespawning    = false;
         this.eatenTimer      = 0;
@@ -149,6 +153,11 @@ class GameSystem {
         this.damageCooldown  = 0;
         this.lastEatTime     = -100;
         this.fishVx          = 0;
+        this.kingCrab        = null;
+        this.kingCrabActive  = false;
+        this.bossDefeated    = false;
+        this.finHp           = FIN_MAX_HP;
+        this.finMaxHp        = FIN_MAX_HP;
 
         spawnStageEntities(this);
         spawnParticles(this);
@@ -254,13 +263,18 @@ class GameSystem {
         updateEdibleFish(this, dt);
         updateFuryfish(this, dt);
         updateEnemies(this, dt);
+        updateClams(this, dt);
         updateMantaRay(this, dt);
         if (this.boss && !this.bossDefeated) updateBoss(this, dt);
+        checkKingCrabTrigger(this);
+        if (this.kingCrab && !this.kingCrab.defeated) updateKingCrab(this, dt);
 
         checkCollisions(this);
 
-        const bossOk = !this.boss || this.bossDefeated;
-        if (countEdible(this) === 0 && bossOk && !this.stageClear) {
+        // Stage clears only when ALL entities are gone — fish, furyfish, enemies, and boss
+        const bossOk    = !this.boss      || this.bossDefeated;
+        const kingCrabOk = !this.kingCrab || this.kingCrab.defeated;
+        if (countEdible(this) === 0 && bossOk && kingCrabOk && !this.stageClear) {
             this.stageClear      = true;
             this.stageClearTimer = 0;
             this._buildStageClearInfo();
@@ -313,16 +327,24 @@ class GameSystem {
     // ── Attack / projectiles ──────────────────────────────────
     _handleAttack() {
         if (!this.hasPearlPower) return;
-        if (this.fishAttacking && (this.elapsed - this.lastAttackTime > this.attackDuration)) {
-            this.lastAttackTime = this.elapsed;
-            this.firedInCurrentAttack = false;
+
+        // Tick down the fire interval timer
+        if (this.pearlFireTimer > 0) {
+            this.pearlFireTimer -= this._lastDt || 0.016;
         }
-        const t = this.elapsed - this.lastAttackTime;
-        if (t < this.attackDuration) {
-            const frame = Math.floor(Math.min(0.99, t / this.attackDuration) * 6) + 1;
-            if (frame === 4 && !this.firedInCurrentAttack) {
-                this._spawnProjectile();
-                this.firedInCurrentAttack = true;
+
+        // Fire when: attack button held, interval elapsed, shots remaining
+        if (this.fishAttacking && this.pearlFireTimer <= 0 && this.pearlShotsLeft > 0) {
+            this._spawnProjectile();
+            this.pearlFireTimer = PEARL_FIRE_INTERVAL;
+            this.pearlShotsLeft--;
+            this.lastAttackTime = this.elapsed;
+
+            // Out of shots — pearl power expended
+            if (this.pearlShotsLeft <= 0) {
+                this.hasPearlPower  = false;
+                this.pearlShotsLeft = 0;
+                this._spawnFloatingText(this.fishX, this.fishY - 60, '🦪 PEARL SPENT — find a clam!', '#888888');
             }
         }
     }
@@ -383,16 +405,19 @@ class GameSystem {
     }
 
     _restartGame() {
-        this.score       = 0;
-        this.attempts    = MAX_ATTEMPTS;
-        this.stage       = 1;
-        this.playerSize  = PLAYER_START_SIZE;
-        this.gameOver    = false;
-        this.stageClear  = false;
-        this.isEaten     = false;
+        this.score        = 0;
+        this.attempts     = MAX_ATTEMPTS;
+        this.stage        = 1;
+        this.playerSize   = PLAYER_START_SIZE;
+        this.gameOver     = false;
+        this.stageClear   = false;
+        this.isEaten      = false;
         this.isRespawning = false;
-        this.particles   = [];
-        this.bubbleTexts = [];
+        this.particles    = [];
+        this.bubbleTexts  = [];
+        this.kingCrab     = null;
+        this.kingCrabActive = false;
+        this.bossDefeated = false;
         if (this.bgm) { this.bgm.currentTime = 0; this.bgm.play().catch(()=>{}); }
         this._initStage();
     }

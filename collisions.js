@@ -192,6 +192,7 @@ function checkCollisions(game) {
     _checkEatFish(game, pr, rank);
     _checkEnemyContact(game, pr);
     _checkBossContact(game, pr);
+    _checkKingCrabContact(game, pr);
     _checkProjectileHits(game);
     _checkClamPickup(game, pr);
 }
@@ -219,7 +220,8 @@ function _checkEatFish(game, pr, rank) {
 
                 // ── Bubble text RIGHT at Fin's mouth ──────────
                 // Try every common velocity variable name as a fallback chain.
-                spawnEatBubble(game);
+                // ── Bubble text RIGHT at Fin's mouth ──────────
+                _spawnBubbleText(game, game.fishX, game.fishY, game.fishVx ?? (game.fishFacingLeft ? -1 : 1), pr);
 
                 playSound(game, 'eat');
             } else if (fishEatsFin) {
@@ -285,6 +287,32 @@ function _checkEnemyContact(game, pr) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// King Crab contact — damages Fin HP instead of instant death
+// ─────────────────────────────────────────────────────────────
+
+function _checkKingCrabContact(game, pr) {
+    const kc = game.kingCrab;
+    if (!kc || kc.defeated) return;
+    const hitR = FISH_DEF.kingCrab.hitRadius;
+    const dist = Math.hypot(game.fishX - kc.x, game.fishY - kc.y);
+    if (dist < pr + hitR && game.damageCooldown <= 0) {
+        // Deduct HP from Fin rather than triggering instant death
+        game.finHp = Math.max(0, (game.finHp ?? 1) - KING_CRAB_DAMAGE);
+        game.damageCooldown = KING_CRAB_COOLDOWN * 0.4; // brief invincibility window
+        game.hitFlashTimer  = 0.35;
+        game._spawnFloatingText(game.fishX, game.fishY - 50, `-${KING_CRAB_DAMAGE} HP!`, '#ff4040');
+        playSound(game, 'hit');
+
+        if (game.finHp <= 0) {
+            // Fin is out of HP — treat as a regular being-eaten death
+            game._startBeingEaten(kc);
+        }
+
+        _nudgeAway({ x: kc.x, y: kc.y }, game.fishX, game.fishY, 80);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Boss contact
 // ─────────────────────────────────────────────────────────────
 
@@ -309,11 +337,18 @@ function _checkProjectileHits(game) {
 
         for (let j = game.bgFuryfish.length - 1; j >= 0; j--) {
             if (Math.hypot(p.x - game.bgFuryfish[j].x, p.y - game.bgFuryfish[j].y) < 48) {
-                game._addScore(SCORE.POISON);
-                game._spawnFloatingText(game.bgFuryfish[j].x, game.bgFuryfish[j].y, `+${SCORE.POISON}`, '#ff4f00');
-                game.bgFuryfish.splice(j, 1);
+                const f = game.bgFuryfish[j];
+                f.hp = (f.hp ?? 1) - 1;
+                f.hitFlash = 0.20;
                 game.projectiles.splice(i, 1);
                 playSound(game, 'shootHit');
+                if (f.hp <= 0) {
+                    game._addScore(SCORE.POISON);
+                    game._spawnFloatingText(f.x, f.y, `+${SCORE.POISON}`, '#ff4f00');
+                    game.bgFuryfish.splice(j, 1);
+                } else {
+                    game._spawnFloatingText(f.x, f.y - 30, `HIT! (${f.hp}HP)`, '#ff8040');
+                }
                 hit = true; break;
             }
         }
@@ -321,11 +356,18 @@ function _checkProjectileHits(game) {
 
         for (let j = game.bgEnemies.length - 1; j >= 0; j--) {
             if (Math.hypot(p.x - game.bgEnemies[j].x, p.y - game.bgEnemies[j].y) < 48) {
-                game._addScore(SCORE.ENEMY);
-                game._spawnFloatingText(game.bgEnemies[j].x, game.bgEnemies[j].y, `+${SCORE.ENEMY}`, '#ff8800');
-                game.bgEnemies.splice(j, 1);
+                const f = game.bgEnemies[j];
+                f.hp = (f.hp ?? 1) - 1;
+                f.hitFlash = 0.20;
                 game.projectiles.splice(i, 1);
                 playSound(game, 'shootHit');
+                if (f.hp <= 0) {
+                    game._addScore(SCORE.ENEMY);
+                    game._spawnFloatingText(f.x, f.y, `+${SCORE.ENEMY}`, '#ff8800');
+                    game.bgEnemies.splice(j, 1);
+                } else {
+                    game._spawnFloatingText(f.x, f.y - 30, `HIT! (${f.hp}HP)`, '#ffaa40');
+                }
                 hit = true; break;
             }
         }
@@ -346,6 +388,27 @@ function _checkProjectileHits(game) {
                 }
             }
         }
+
+        // ── King Crab projectile hits ──────────────────────────
+        const kc = game.kingCrab;
+        if (kc && !kc.defeated) {
+            if (Math.hypot(p.x - kc.x, p.y - kc.y) < FISH_DEF.kingCrab.hitRadius * 0.75) {
+                kc.hp--;
+                kc.hitFlash  = 0.22;
+                kc.frameRow  = KC_ROW_HURT;
+                kc.frameCol  = 0;
+                game.projectiles.splice(i, 1);
+                game._addScore(SCORE.BOSS_HIT);
+                game._spawnFloatingText(kc.x, kc.y - 60, `HIT! +${SCORE.BOSS_HIT}`, '#ff4f00');
+                playSound(game, 'shootHit');
+                if (kc.hp <= 0) {
+                    kc.defeated = true;
+                    game.bossDefeated = true;
+                    game._addScore(SCORE.BOSS_KILL);
+                    game._spawnFloatingText(kc.x, kc.y - 100, `KING CRAB DEFEATED! +${SCORE.BOSS_KILL}`, '#ffd060');
+                }
+            }
+        }
     }
 }
 
@@ -360,9 +423,11 @@ function _checkClamPickup(game, pr) {
                 clam.hasPearl        = false;
                 clam.pearlCollected  = true;
                 clam.openAnim        = 1.0;
+                clam.respawnTimer    = 0;
                 game.hasPearlPower   = true;
+                game.pearlShotsLeft  = PEARL_FIRE_BURST;   // track remaining shots
                 game._addScore(SCORE.PEARL);
-                game._spawnFloatingText(clam.x, clam.y - 28, `🦪 PEARL POWER! +${SCORE.PEARL}`, '#00c8ff');
+                game._spawnFloatingText(clam.x, clam.y - 28, `🦪 PEARL POWER! +${SCORE.PEARL} (${PEARL_FIRE_BURST} shots)`, '#00c8ff');
                 playSound(game, 'collect');
             }
         }

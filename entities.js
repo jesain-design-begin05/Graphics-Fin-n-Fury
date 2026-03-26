@@ -70,10 +70,10 @@ function spawnStageEntities(game) {
     for (let i = 0; i < (def.tunafish    || 0); i++) game.bgTunafish.push(    mkDef('tunafish',  0.12, 0.78));
 
     for (let i = 0; i < (def.furyfish || 0); i++) {
-        game.bgFuryfish.push(mkDef('furyfish', 0.05, 0.90, { isAttacking: false, chaseSpeed: 0 }));
+        game.bgFuryfish.push(mkDef('furyfish', 0.05, 0.90, { isAttacking: false, chaseSpeed: 0, hp: FURYFISH_HP, maxHp: FURYFISH_HP, hitFlash: 0 }));
     }
     for (let i = 0; i < (def.enemies || 0); i++) {
-        game.bgEnemies.push(mkDef('enemy', 0.08, 0.88, { isAttacking: false }));
+        game.bgEnemies.push(mkDef('enemy', 0.08, 0.88, { isAttacking: false, hp: ENEMY_HP, maxHp: ENEMY_HP, hitFlash: 0 }));
     }
 
     for (let i = 0; i < 2; i++) {
@@ -81,21 +81,31 @@ function spawnStageEntities(game) {
             x: W * 0.12 + Math.random() * W * 0.76,
             y: H * 0.88 + Math.random() * H * 0.09,
             hasPearl: true, openAnim: 0, pearlCollected: false,
+            respawnTimer: 0,   // counts down after pearl is taken
         });
     }
 
     spawnDecorations(game);
 
     if (def.hasBoss) {
-        game.boss = {
-            type: 'boss',
-            x: W * 0.75, y: H * 0.40, vx: -60, vy: 0,
-            hp: 12, maxHp: 12, chargeTimer: 0,
-            chargeCooldown: 4, chargeDuration: 0.7,
-            isCharging: false, chargeVx: 0, chargeVy: 0,
-            frameOffset: 0, bobOffset: Math.random() * Math.PI * 2,
-            hitFlash: 0, facingLeft: true,
-        };
+        // Stage 3 uses the King Crab — it appears ONLY after all edible fish are gone.
+        // Other boss stages use the legacy furyfish-sheet boss that spawns immediately.
+        if (game.stage === 3) {
+            // King Crab will be created by triggerKingCrab() once the fish are cleared.
+            game.boss         = null;
+            game.kingCrab     = null;
+            game.kingCrabActive = false;
+        } else {
+            game.boss = {
+                type: 'boss',
+                x: W * 0.75, y: H * 0.40, vx: -60, vy: 0,
+                hp: 12, maxHp: 12, chargeTimer: 0,
+                chargeCooldown: 4, chargeDuration: 0.7,
+                isCharging: false, chargeVx: 0, chargeVy: 0,
+                frameOffset: 0, bobOffset: Math.random() * Math.PI * 2,
+                hitFlash: 0, facingLeft: true,
+            };
+        }
     }
 }
 
@@ -151,6 +161,7 @@ function updateEdibleFish(game, dt) {
 function updateFuryfish(game, dt) {
     for (const f of game.bgFuryfish) {
         if (f._warnTimer > 0) f._warnTimer -= dt;
+        if (f.hitFlash > 0)   f.hitFlash   -= dt;
         const onScreen = isOnScreen(game, f.x, f.y, 80);
         if (onScreen) {
             f.isAttacking = true;
@@ -175,6 +186,7 @@ function updateFuryfish(game, dt) {
 function updateEnemies(game, dt) {
     for (const f of game.bgEnemies) {
         if (f._warnTimer > 0) f._warnTimer -= dt;
+        if (f.hitFlash > 0)   f.hitFlash   -= dt;
         const onScreen = isOnScreen(game, f.x, f.y, 80);
         if (onScreen) {
             f.isAttacking = true;
@@ -254,8 +266,168 @@ function updateMantaRay(game, dt) {
     else if (m.vx < 0 && m.x < margin)                 m.x = game.world.w - margin - 10;
 }
 
+/**
+ * Call this every frame from the main game loop (game._animate / updateGame).
+ * Checks if Stage 3 edible fish are all gone and fires the King Crab entrance.
+ */
+function checkKingCrabTrigger(game) {
+    if (game.stage !== 3) return;
+    if (game.kingCrabActive) return;           // already triggered
+    if (game.isEaten || game.isRespawning) return;
+
+    const edibleCount = (game.bgTinyfish     ? game.bgTinyfish.length     : 0)
+                      + (game.bgClownfish    ? game.bgClownfish.length    : 0)
+                      + (game.bgGoldfish     ? game.bgGoldfish.length     : 0)
+                      + (game.bgSecondfish   ? game.bgSecondfish.length   : 0)
+                      + (game.bgTertiaryfish ? game.bgTertiaryfish.length : 0)
+                      + (game.bgTunafish     ? game.bgTunafish.length     : 0);
+
+    if (edibleCount === 0) {
+        triggerKingCrab(game);
+    }
+}
+
 // ────────────────────────────────────────────────────────────────
-//  Decorations — static world props (boat, corals, seagrass,
+//  King Crab — Stage 3 boss
+//  Sprite sheet: kingcrab.png — 4 cols × 4 rows
+//    row 0 = idle/walk  row 1 = claw-swipe  row 2 = fire-burst  row 3 = hurt/death
+//  Spawned only AFTER all edible fish are eaten (countEdible === 0).
+//  Has its own HP system; hits Fin for HP damage (not instant death).
+// ────────────────────────────────────────────────────────────────
+
+const KC_COLS         = 4;
+const KC_ROWS         = 4;
+const KC_ROW_WALK     = 0;
+const KC_ROW_CLAW     = 1;
+const KC_ROW_FIRE     = 2;
+const KC_ROW_HURT     = 3;
+
+/**
+ * Called once when all stage-3 fish are cleared.
+ * Resets camera zoom, positions the crab, and initialises Fin HP.
+ */
+function triggerKingCrab(game) {
+    if (game.kingCrabActive) return;
+    game.kingCrabActive = true;
+
+    // Reset camera zoom to default so the full arena is visible
+    game.camZoom       = 1.0;
+    game._targetZoom   = 1.0;
+
+    const W = game.world.w;
+    const H = game.world.h;
+
+    game.kingCrab = {
+        x:            W * 0.75,
+        y:            H * 0.55,
+        vx:           -FISH_DEF.kingCrab.speedMin,
+        vy:           0,
+        hp:           10,
+        maxHp:        10,
+        facingLeft:   true,
+        frameCol:     0,
+        frameRow:     KC_ROW_WALK,
+        frameTimer:   0,
+        hitFlash:     0,
+        clawCooldown: 0,        // time until next claw attack
+        clawActive:   false,    // currently in claw-swipe animation
+        clawTimer:    0,
+        bobOffset:    Math.random() * Math.PI * 2,
+        defeated:     false,
+    };
+
+    // Initialise Fin HP for the boss fight
+    game.finHp    = FIN_MAX_HP;
+    game.finMaxHp = FIN_MAX_HP;
+
+    // Show dramatic intro text
+    game._spawnFloatingText(W / 2, H / 2 - 100, '👑 KING CRAB APPEARS!', '#ff4040');
+    game._spawnFloatingText(W / 2, H / 2 - 60,  'Shoot or outmanoeuvre it!', '#ffcc40');
+}
+
+function updateKingCrab(game, dt) {
+    const kc = game.kingCrab;
+    if (!kc || kc.defeated) return;
+
+    const W = game.world.w;
+    const H = game.world.h;
+
+    // ── Hit flash decay ─────────────────────────────────────────
+    if (kc.hitFlash > 0) kc.hitFlash -= dt;
+
+    // ── Claw attack cooldown ────────────────────────────────────
+    if (kc.clawCooldown > 0) kc.clawCooldown -= dt;
+
+    // ── Claw-swipe animation phase ──────────────────────────────
+    if (kc.clawActive) {
+        kc.clawTimer -= dt;
+        kc.frameRow   = KC_ROW_CLAW;
+        if (kc.clawTimer <= 0) {
+            kc.clawActive = false;
+            kc.frameRow   = KC_ROW_WALK;
+        }
+    }
+
+    // ── Frame animation (8 fps) ─────────────────────────────────
+    kc.frameTimer += dt;
+    if (kc.frameTimer >= 0.125) {
+        kc.frameTimer = 0;
+        kc.frameCol   = (kc.frameCol + 1) % KC_COLS;
+    }
+
+    // ── Movement — slow pursuit of Fin ──────────────────────────
+    const dx   = game.fishX - kc.x;
+    const dy   = game.fishY - kc.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (!kc.clawActive) {
+        const speed = FISH_DEF.kingCrab.speedMin + Math.sin(game.elapsed * 0.5) * 12;
+        const ang   = Math.atan2(dy, dx);
+        kc.vx = Math.cos(ang) * speed;
+        kc.vy = Math.sin(ang) * speed;
+        kc.facingLeft = kc.vx < 0;
+
+        // Trigger claw swipe when close enough and cooldown expired
+        if (dist < 180 && kc.clawCooldown <= 0) {
+            kc.clawActive   = true;
+            kc.clawTimer    = 0.7;           // animation duration
+            kc.clawCooldown = KING_CRAB_COOLDOWN;
+            kc.frameRow     = KC_ROW_CLAW;
+            kc.frameCol     = 0;
+        }
+    } else {
+        // Slow down during claw swipe
+        kc.vx *= 0.85;
+        kc.vy *= 0.85;
+    }
+
+    kc.x += kc.vx * dt;
+    kc.y += kc.vy * dt;
+
+    // World bounds clamp
+    kc.x = Math.max(120, Math.min(W - 120, kc.x));
+    kc.y = Math.max(80,  Math.min(H - 80,  kc.y));
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Clam respawn — after pearl is collected, clam reseals after CLAM_RESPAWN_TIME
+// ────────────────────────────────────────────────────────────────
+
+function updateClams(game, dt) {
+    for (const clam of game.clams) {
+        if (clam.pearlCollected) {
+            clam.respawnTimer = (clam.respawnTimer || 0) + dt;
+            if (clam.respawnTimer >= CLAM_RESPAWN_TIME) {
+                clam.pearlCollected = false;
+                clam.hasPearl       = true;
+                clam.openAnim       = 0;
+                clam.respawnTimer   = 0;
+                game._spawnFloatingText(clam.x, clam.y - 40, '🦪 PEARL RESTORED!', '#00c8ff');
+            }
+        }
+    }
+}
+
 //  seaweed, fish shadow).  Called once per stage from
 //  spawnStageEntities.
 // ────────────────────────────────────────────────────────────────

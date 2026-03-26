@@ -42,6 +42,11 @@ function initSpriteContainers(game) {
     // ── Manta ray ─────────────────────────────────────────────
     game.mantaRayImg = null;       // manta.png  (4 cols × 2 rows = 8 frames, faces left)
 
+    // ── King Crab boss (Stage 3) ───────────────────────────────
+    // kingcrab.png — 4 cols × 4 rows:
+    //   row0 = idle/walk, row1 = claw-swipe, row2 = fire-burst, row3 = hurt/death
+    game.kingCrabSheet = null;
+
     game.clamSprite       = {};
     game.pearlSprite      = null;
     game.gameOverSprite   = null;
@@ -136,6 +141,10 @@ function loadSprites(game) {
     // ── Manta ray sprite sheet (4 cols × 2 rows = 8 frames, faces left) ──
     game.mantaRayImg = img();
     game.mantaRayImg.src = 'element_sprites/manta.png';
+
+    // ── King Crab boss sprite sheet (4 cols × 4 rows) ─────────
+    game.kingCrabSheet = img();
+    game.kingCrabSheet.src = 'kingcrab.png';
 
     // ── Projectile frames (8 frames, zero-padded) ─────────────
     for (let f = 1; f <= 8; f++) {

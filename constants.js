@@ -130,6 +130,7 @@ const FISH_DEF = {
     furyfish:   { scale: 2.40, hitRadius: 78,  sizeRank: 99, eatsFin: true,  speedMin:  45, speedMax:  85 },
     enemy:      { scale: 1.95, hitRadius: 70,  sizeRank: 99, eatsFin: true,  speedMin:  35, speedMax:  68 },
     boss:       { scale: 3.00, hitRadius: 108, sizeRank: 99, eatsFin: true,  speedMin:   0, speedMax:   0 },
+    kingCrab:   { scale: 2.60, hitRadius: 100, sizeRank: 99, eatsFin: true,  speedMin:  30, speedMax:  60 },
 };
 
 const FISH_SCALE = {
@@ -142,12 +143,13 @@ const FISH_SCALE = {
     furyfish:   FISH_DEF.furyfish.scale,
     enemy:      FISH_DEF.enemy.scale,
     boss:       FISH_DEF.boss.scale,
+    kingCrab:   FISH_DEF.kingCrab.scale,
 };
 
 function playerSizeRank(playerSize) {
-    if (playerSize >= 1.55) return 3;
-    if (playerSize >= 1.15) return 2;
-    if (playerSize >= 0.70) return 1;
+    if (playerSize >= 1.95) return 3;
+    if (playerSize >= 1.55) return 2;
+    if (playerSize >= 1.00) return 1;
     return 0;
 }
 
@@ -166,11 +168,25 @@ const GROW = {
 
 const PLAYER_HIT_BASE    = 22;
 const PLAYER_SPEED_BASE  = 340;
+
+// ── Fin hit points (King Crab boss fight) ────────────────────
+const FIN_MAX_HP         = 5;    // Fin starts with 5 HP against the King Crab
+const KING_CRAB_DAMAGE   = 1;    // each claw hit removes 1 HP
+const KING_CRAB_COOLDOWN = 2.5;  // seconds between claw hits
 const FURY_SCREEN_CHASE  = 250;
 const FURY_CLOSEIN_BONUS = 70;
 const FURY_PATROL_SPEED  = 68;
 const ENEMY_CHASE_SPEED  = 165;
 const ENEMY_PATROL_SPEED = 50;
+
+// ── Enemy HP ─────────────────────────────────────────────────
+const FURYFISH_HP        = 3;    // furyfish takes 3 hits to kill
+const ENEMY_HP           = 2;    // regular enemy takes 2 hits
+
+// ── Pearl shoot interval ──────────────────────────────────────
+const PEARL_FIRE_INTERVAL = 0.45;  // seconds between shots while holding attack
+const PEARL_FIRE_BURST    = 5;     // max shots per pearl pickup before it depletes
+const CLAM_RESPAWN_TIME   = 12.0;  // seconds before a spent clam reseals with a new pearl
 
 const MINIMAP = {
     SIZE:       150,
