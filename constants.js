@@ -76,65 +76,50 @@ const STAGE_DEFS = {
 };
 
 /* ================================================================
-   STAGE_BG_MAP
+   STAGE_CSS_CLASS
    ─────────────────────────────────────────────────────────────
-   Your actual files on disk (inside backgrounds_new/) are:
-     Path_1_kelpforests.png          ← one PNG per path for stages 1-3
-     Path_2_abyssalchasm.png         ← one PNG for stages 4-6
-     Path_3_krakenslair1.png         ← separate PNGs per stage for path 3
-     Path_3_krakenslair2.png
-     Path_3_krakenslair3.png
-     Path_4_sunkenatlantis.png       ← separate PNGs per stage for path 4
-     Path_4_sunkenatlantis2.png
-     Path_4_sunkenatlantis3.png
-     Path_5_bubblingvolcanoes.png    ← one PNG for stages 13-15
+   Maps each global stage number (1-15) to a CSS class defined
+   in maps_and_stages.css.  applyBgClass() in game.js sets this
+   class on #gameCanvas so the CSS gradient shows as background.
 
-   sprites.js builds:  `${folder}/stage${localIdx}_bg.png`
-   But your files are flat PNGs, NOT subfolders with stage_N files.
-
-   FIX: We point `folder` at `backgrounds_new` and set the full
-   filename stem in a new `bgFile` / `fgFile` property.
-   sprites.js must also be updated (see sprites.js fix below).
+   Class naming convention (from maps_and_stages.css):
+     path{pathNum}-stage{localStage}
+     e.g.  path1-stage1, path1-stage2, path1-stage3
 ================================================================= */
-const STAGE_BG_MAP = {
-    //  stage :  { bg: 'path to bg png',  fg: null (no fg file) }
-    //  Stages 1-3: Path 1 — Kelp Forests (all share the same bg)
-    1:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
-    2:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
-    3:  { bg: 'backgrounds_new/Path_1_kelpforests.png',    fg: null },
-
-    //  Stages 4-6: Path 2 — Abyssal Chasm
-    4:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
-    5:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
-    6:  { bg: 'backgrounds_new/Path_2_abyssalchasm.png',   fg: null },
-
-    //  Stages 7-9: Path 3 — Kraken's Lair (3 separate images)
-    7:  { bg: 'backgrounds_new/Path_3_krakenslair1.png',   fg: null },
-    8:  { bg: 'backgrounds_new/Path_3_krakenslair2.png',   fg: null },
-    9:  { bg: 'backgrounds_new/Path_3_krakenslair3.png',   fg: null },
-
-    //  Stages 10-12: Path 4 — Sunken Atlantis (3 separate images)
-    10: { bg: 'backgrounds_new/Path_4_sunkenatlantis.png',  fg: null },
-    11: { bg: 'backgrounds_new/Path_4_sunkenatlantis2.png', fg: null },
-    12: { bg: 'backgrounds_new/Path_4_sunkenatlantis3.png', fg: null },
-
-    //  Stages 13-15: Path 5 — Bubbling Volcanoes
-    13: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
-    14: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
-    15: { bg: 'backgrounds_new/Path_5_bubblingvolcanoes.png', fg: null },
+const STAGE_CSS_CLASS = {
+    //  Path 1 — Kelp Forest
+    1:  'path1-stage1',
+    2:  'path1-stage2',
+    3:  'path1-stage3',
+    //  Path 2 — Abyssal Chasm
+    4:  'path2-stage1',
+    5:  'path2-stage2',
+    6:  'path2-stage3',
+    //  Path 3 — Kraken's Lair
+    7:  'path3-stage1',
+    8:  'path3-stage2',
+    9:  'path3-stage3',
+    //  Path 4 — Sunken Atlantis
+    10: 'path4-stage1',
+    11: 'path4-stage2',
+    12: 'path4-stage3',
+    //  Path 5 — Volcanic Vent
+    13: 'path5-stage1',
+    14: 'path5-stage2',
+    15: 'path5-stage3',
 };
 
 // ── Fish definitions ──────────────────────────────────────────
 const FISH_DEF = {
-    tinyfish:   { scale: 0.22, hitRadius: 10,  sizeRank: 0,  eatsFin: false, speedMin: 150, speedMax: 240 },
-    clownfish:  { scale: 0.50, hitRadius: 22,  sizeRank: 1,  eatsFin: true,  speedMin: 100, speedMax: 175 },
-    goldfish:   { scale: 0.45, hitRadius: 20,  sizeRank: 1,  eatsFin: true,  speedMin:  90, speedMax: 160 },
-    secondfish: { scale: 1.00, hitRadius: 44,  sizeRank: 2,  eatsFin: true,  speedMin:  55, speedMax: 105 },
+    tinyfish:   { scale: 0.50, hitRadius: 10,  sizeRank: 0,  eatsFin: false, speedMin: 150, speedMax: 240 },
+    clownfish:  { scale: 0.90, hitRadius: 22,  sizeRank: 1,  eatsFin: true,  speedMin: 100, speedMax: 175 },
+    goldfish:   { scale: 1.30, hitRadius: 20,  sizeRank: 1,  eatsFin: true,  speedMin:  90, speedMax: 160 },
+    secondfish: { scale: 1.70, hitRadius: 44,  sizeRank: 2,  eatsFin: true,  speedMin:  55, speedMax: 105 },
     tertiary:   { scale: 0.88, hitRadius: 38,  sizeRank: 2,  eatsFin: true,  speedMin:  62, speedMax: 120 },
-    tunafish:   { scale: 1.45, hitRadius: 64,  sizeRank: 3,  eatsFin: true,  speedMin:  35, speedMax:  75 },
-    furyfish:   { scale: 2.10, hitRadius: 78,  sizeRank: 99, eatsFin: true,  speedMin:  45, speedMax:  85 },
+    tunafish:   { scale: 2.05, hitRadius: 64,  sizeRank: 3,  eatsFin: true,  speedMin:  35, speedMax:  75 },
+    furyfish:   { scale: 2.40, hitRadius: 78,  sizeRank: 99, eatsFin: true,  speedMin:  45, speedMax:  85 },
     enemy:      { scale: 1.95, hitRadius: 70,  sizeRank: 99, eatsFin: true,  speedMin:  35, speedMax:  68 },
-    boss:       { scale: 2.80, hitRadius: 108, sizeRank: 99, eatsFin: true,  speedMin:   0, speedMax:   0 },
+    boss:       { scale: 3.00, hitRadius: 108, sizeRank: 99, eatsFin: true,  speedMin:   0, speedMax:   0 },
 };
 
 const FISH_SCALE = {
@@ -150,13 +135,13 @@ const FISH_SCALE = {
 };
 
 function playerSizeRank(playerSize) {
-    if (playerSize >= 1.25) return 3;
-    if (playerSize >= 0.85) return 2;
-    if (playerSize >= 0.50) return 1;
+    if (playerSize >= 1.55) return 3;
+    if (playerSize >= 1.15) return 2;
+    if (playerSize >= 0.70) return 1;
     return 0;
 }
 
-const PLAYER_START_SIZE     = 0.42;
+const PLAYER_START_SIZE     = 0.60;
 const PLAYER_MAX_SIZE       = 1.85;
 const MAX_ATTEMPTS          = 5;
 const RESPAWN_COUNTDOWN     = 3;

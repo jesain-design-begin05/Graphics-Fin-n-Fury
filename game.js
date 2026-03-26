@@ -143,6 +143,9 @@ class GameSystem {
         spawnStageEntities(this);
         spawnParticles(this);
 
+        // Apply CSS background class for this stage (maps_and_stages.css)
+        applyBgClass(this);
+
         this.stageIntroActive = true;
         this.stageIntroTimer  = 2.8;
     }
@@ -239,6 +242,7 @@ class GameSystem {
         updateEdibleFish(this, dt);
         updateFuryfish(this, dt);
         updateEnemies(this, dt);
+        updateMantaRay(this, dt);     
         if (this.boss && !this.bossDefeated) updateBoss(this, dt);
 
         checkCollisions(this);

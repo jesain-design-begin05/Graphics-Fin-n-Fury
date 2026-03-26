@@ -37,6 +37,7 @@ class MenuSystem {
             coral1:   Object.assign(new Image(), { src: 'coral1.png' }),
             coral3:   Object.assign(new Image(), { src: 'coral3.png' }),
             seagrass: Object.assign(new Image(), { src: 'seagras.png' }),
+            seaweed:  Object.assign(new Image(), { src: 'seaweed_sprite.png' }),
         };
 
         this._init();
@@ -273,12 +274,28 @@ class MenuSystem {
             ctx.drawImage(boat, bx, by, bw, bh); ctx.restore();
         }
 
-        const mkItems = (img, positions, layer) => positions.map(([xFrac, scaleFrac, swayAmp, swaySpd, swayPh]) => {
+        // ── mkItems builds render tuples for the shared drawing loop.
+        // Each position entry: [xFrac, scaleFrac, swayAmp, swaySpd, swayPh]
+        // layer 0 = back, 1 = mid, 2 = front
+        // FIX: added a 9th element `blendMode` so seaweed (and others that
+        //      need it) can use 'source-over' instead of 'lighten', which
+        //      makes them invisible on dark backgrounds.
+        const mkItems = (img, positions, layer, blendMode = null) => {
             const alphas   = [0.75, 0.55, 0.88];
             const scaleAdj = [1.00, 1.00, 1.15];
             const yAdj     = [0.02, 0.00, -0.01];
-            return [img, xFrac, scaleFrac * scaleAdj[layer], swayAmp, swaySpd, swayPh, alphas[layer], yAdj[layer]];
-        });
+            return positions.map(([xFrac, scaleFrac, swayAmp, swaySpd, swayPh]) => [
+                img,
+                xFrac,
+                scaleFrac * scaleAdj[layer],
+                swayAmp,
+                swaySpd,
+                swayPh,
+                alphas[layer],
+                yAdj[layer],
+                blendMode,   // <-- NEW 9th element, null = use default logic
+            ]);
+        };
 
         const backCoral3 = mkItems(this._bgAssets.coral3, [
             [0.18, 0.28, 2, 0.15, 1.4], [0.47, 0.31, 2, 0.17, 0.8],
@@ -297,6 +314,19 @@ class MenuSystem {
             [0.97, 0.16, 8, 1.0, 3.1],
         ], 1);
 
+        // ── Seaweed — forced 'source-over' so it's always visible,
+        //    alpha bumped to 0.82 so it shows clearly on dark ocean floor.
+        //    Taller scale (0.22–0.26) and stronger sway than seagrass.
+        const midSeaweed = mkItems(this._bgAssets.seaweed, [
+            [0.04, 0.24, 11, 1.0, 0.3], [0.11, 0.22, 10, 0.9, 1.1],
+            [0.18, 0.25, 12, 1.1, 2.4], [0.25, 0.23, 10, 0.8, 0.7],
+            [0.33, 0.24, 11, 1.0, 1.8], [0.41, 0.22, 10, 0.9, 3.1],
+            [0.49, 0.25, 12, 1.1, 0.5], [0.57, 0.23, 10, 0.8, 2.0],
+            [0.65, 0.24, 11, 1.0, 1.3], [0.73, 0.22, 10, 0.9, 0.8],
+            [0.81, 0.25, 12, 1.1, 2.7], [0.89, 0.23, 10, 0.8, 1.6],
+            [0.96, 0.24, 11, 1.0, 0.4],
+        ], 1, 'source-over');
+
         const midCoral  = mkItems(this._bgAssets.coral,  [], 1);
         const midCoral1 = mkItems(this._bgAssets.coral1, [], 1);
 
@@ -313,9 +343,18 @@ class MenuSystem {
             [0.58, 0.40, 3, 0.24, 1.1], [0.82, 0.37, 2, 0.20, 0.3],
         ], 2);
 
-        const allLayers = [...backCoral3, ...frontCoral3, ...midGrass, ...midCoral, ...midCoral1, ...frontGrass];
+        // Draw order: back corals → mid grass → mid seaweed → mid corals → front grass → front corals
+        const allLayers = [
+            ...backCoral3,
+            ...midGrass,
+            ...midSeaweed,
+            ...midCoral,
+            ...midCoral1,
+            ...frontGrass,
+            ...frontCoral3,
+        ];
 
-        for (const [img, xFrac, scaleFrac, swayAmp, swaySpd, swayPh, alpha, yAdj] of allLayers) {
+        for (const [img, xFrac, scaleFrac, swayAmp, swaySpd, swayPh, alpha, yAdj, blendMode] of allLayers) {
             if (!img || !img.complete || img.naturalWidth === 0) continue;
             const ih   = Math.min(H * scaleFrac, H * 0.30), sc = ih / img.naturalHeight;
             const iw   = img.naturalWidth * sc;
@@ -323,8 +362,15 @@ class MenuSystem {
             const baseX = W * xFrac - iw / 2;
             const baseY = H - ih * (0.85 - yAdj);
             ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.globalCompositeOperation = (img === this._bgAssets.coral3) ? 'source-over' : 'lighten';
+            // FIX: use explicit blendMode if provided, otherwise fall back to
+            //      the original logic (coral3 = source-over, everything else = lighten).
+            if (blendMode) {
+                ctx.globalCompositeOperation = blendMode;
+                ctx.globalAlpha = 0.82; // brighter alpha for seaweed on dark bg
+            } else {
+                ctx.globalAlpha = alpha;
+                ctx.globalCompositeOperation = (img === this._bgAssets.coral3) ? 'source-over' : 'lighten';
+            }
             ctx.transform(1, 0, sway / ih, 1, baseX - (sway / ih) * (baseY + ih), baseY);
             ctx.drawImage(img, 0, 0, iw, ih);
             ctx.restore();

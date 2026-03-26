@@ -1,0 +1,454 @@
+/* ============================================================
+   FEEDING FRENZY - Underwater Background CSS
+   5 Paths × 3 Stages = 15 Unique Backgrounds
+   Usage: Apply class to .game-bg or body element
+   ============================================================ */
+
+/* ============================================================
+   PATH 1: KELP FOREST
+   Shallow, sun-drenched coastal waters — shifting from
+   bright turquoise shallows to dusky green depths
+   ============================================================ */
+
+/* Stage 1 — Sunlit Surface Layer */
+.path1-stage1 {
+  background:
+    /* Caustic light rays from surface */
+    repeating-linear-gradient(
+      172deg,
+      transparent 0%,
+      rgba(180, 240, 210, 0.06) 0.4%,
+      transparent 1%,
+      transparent 3%
+    ),
+    repeating-linear-gradient(
+      168deg,
+      transparent 0%,
+      rgba(140, 220, 190, 0.04) 0.3%,
+      transparent 0.9%,
+      transparent 4%
+    ),
+    /* Depth gradient — bright teal to mid green */
+    linear-gradient(
+      to bottom,
+      #1fd0c8 0%,
+      #10b8a8 8%,
+      #0fa090 18%,
+      #0d8878 30%,
+      #0b7265 45%,
+      #095e52 62%,
+      #074e44 78%,
+      #054038 100%
+    );
+  background-color: #054038;
+}
+
+/* Stage 2 — Mid Canopy (filtered green light) */
+.path1-stage2 {
+  background:
+    /* Sunbeam shafts breaking through kelp canopy */
+    repeating-linear-gradient(
+      175deg,
+      transparent 0%,
+      rgba(100, 200, 140, 0.05) 0.5%,
+      transparent 1.2%,
+      transparent 5%
+    ),
+    repeating-linear-gradient(
+      169deg,
+      transparent 0%,
+      rgba(60, 180, 110, 0.04) 0.4%,
+      transparent 1%,
+      transparent 6%
+    ),
+    /* Depth gradient — filtered teal-green canopy */
+    linear-gradient(
+      to bottom,
+      #0a9478 0%,
+      #087d66 10%,
+      #076856 22%,
+      #065648 35%,
+      #054538 50%,
+      #043a2e 65%,
+      #032f26 80%,
+      #02261e 100%
+    );
+  background-color: #02261e;
+}
+
+/* Stage 3 — Deep Kelp Floor (barely any sunlight) */
+.path1-stage3 {
+  background:
+    /* Faint bioluminescent shimmer from organisms on kelp */
+    radial-gradient(ellipse 80% 30% at 30% 10%, rgba(0, 200, 150, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 20% at 70% 5%, rgba(0, 170, 130, 0.04) 0%, transparent 50%),
+    /* Very dark green-black depth */
+    linear-gradient(
+      to bottom,
+      #032e24 0%,
+      #022219 15%,
+      #011a12 30%,
+      #01130d 50%,
+      #010e09 70%,
+      #000c08 85%,
+      #000906 100%
+    );
+  background-color: #000906;
+}
+
+
+/* ============================================================
+   PATH 2: ABYSSAL CHASM
+   Open ocean descent into total darkness — blue to indigo
+   to near-black, with faint pressure halos
+   ============================================================ */
+
+/* Stage 1 — Twilight Zone (mesopelagic) */
+.path2-stage1 {
+  background:
+    /* Pressure diffraction halos — subtle rings */
+    radial-gradient(ellipse 120% 40% at 50% 0%, rgba(30, 80, 180, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 25% at 50% 100%, rgba(10, 30, 90, 0.2) 0%, transparent 60%),
+    /* Twilight blue column */
+    linear-gradient(
+      to bottom,
+      #0c3f8c 0%,
+      #0a3478 10%,
+      #082b68 22%,
+      #07245a 35%,
+      #061e4e 50%,
+      #051844 65%,
+      #041238 80%,
+      #030e2e 100%
+    );
+  background-color: #030e2e;
+}
+
+/* Stage 2 — Midnight Zone (bathypelagic) */
+.path2-stage2 {
+  background:
+    /* Faint bioluminescence dots simulated with soft radials */
+    radial-gradient(circle 3px at 15% 30%, rgba(80, 120, 255, 0.15) 0%, transparent 100%),
+    radial-gradient(circle 2px at 72% 18%, rgba(60, 100, 240, 0.12) 0%, transparent 100%),
+    radial-gradient(circle 4px at 44% 60%, rgba(90, 130, 255, 0.1) 0%, transparent 100%),
+    radial-gradient(circle 2px at 88% 75%, rgba(70, 110, 220, 0.1) 0%, transparent 100%),
+    /* Crushing indigo darkness */
+    linear-gradient(
+      to bottom,
+      #040e30 0%,
+      #030b28 15%,
+      #020920 30%,
+      #020718 50%,
+      #010510 70%,
+      #010310 85%,
+      #000208 100%
+    );
+  background-color: #000208;
+}
+
+/* Stage 3 — Abyssal Floor (hadal pressure, absolute dark) */
+.path2-stage3 {
+  background:
+    /* Ultra-faint thermal glow from hydrothermal micro-vents */
+    radial-gradient(ellipse 60% 8% at 50% 100%, rgba(20, 10, 60, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 5% at 25% 100%, rgba(10, 5, 40, 0.3) 0%, transparent 80%),
+    /* Near-absolute black with deep violet undertone */
+    linear-gradient(
+      to bottom,
+      #010210 0%,
+      #010110 20%,
+      #00010a 50%,
+      #000108 70%,
+      #000005 100%
+    );
+  background-color: #000005;
+}
+
+
+/* ============================================================
+   PATH 3: KRAKEN'S LAIR
+   Ink-stained cave waters — deep purple-black with
+   bioluminescent pulses and scattered light anomalies
+   ============================================================ */
+
+/* Stage 1 — Cave Entrance (open water meets cave dark) */
+.path3-stage1 {
+  background:
+    /* Ink diffusion plume from centre depth */
+    radial-gradient(ellipse 100% 60% at 50% 80%, rgba(30, 0, 60, 0.5) 0%, transparent 70%),
+    /* Dim greenish bio-light from cave organisms */
+    radial-gradient(ellipse 60% 20% at 20% 40%, rgba(0, 80, 60, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 15% at 80% 20%, rgba(0, 60, 50, 0.06) 0%, transparent 60%),
+    /* Murky blue-purple water */
+    linear-gradient(
+      to bottom,
+      #0b1a3d 0%,
+      #0a1535 12%,
+      #090f2c 25%,
+      #080b24 40%,
+      #07081e 55%,
+      #060516 70%,
+      #050310 85%,
+      #040208 100%
+    );
+  background-color: #040208;
+}
+
+/* Stage 2 — Ink Cloud Chamber (disorienting blackness) */
+.path3-stage2 {
+  background:
+    /* Swirling ink blobs — large dark voids */
+    radial-gradient(ellipse 80% 50% at 70% 30%, rgba(15, 0, 35, 0.7) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 70%, rgba(10, 0, 25, 0.6) 0%, transparent 55%),
+    /* Faint purple bioluminescent veins */
+    radial-gradient(ellipse 40% 10% at 50% 50%, rgba(100, 0, 180, 0.06) 0%, transparent 70%),
+    radial-gradient(circle 5px at 35% 25%, rgba(120, 40, 200, 0.15) 0%, transparent 100%),
+    radial-gradient(circle 4px at 68% 60%, rgba(100, 20, 180, 0.12) 0%, transparent 100%),
+    /* Opaque ink-black base */
+    linear-gradient(
+      to bottom,
+      #08041a 0%,
+      #060214 20%,
+      #04010e 40%,
+      #03010a 60%,
+      #020108 80%,
+      #010005 100%
+    );
+  background-color: #010005;
+}
+
+/* Stage 3 — Kraken's Heart (tentacle-dark, bio-pulse glow) */
+.path3-stage3 {
+  background:
+    /* Eerie purple bioluminescent glow from the Kraken */
+    radial-gradient(ellipse 70% 40% at 50% 60%, rgba(80, 0, 140, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 25% at 50% 80%, rgba(60, 0, 120, 0.2) 0%, transparent 60%),
+    /* Scattered eye-like glows */
+    radial-gradient(circle 8px at 30% 40%, rgba(150, 0, 220, 0.2) 0%, transparent 100%),
+    radial-gradient(circle 6px at 70% 55%, rgba(130, 0, 200, 0.18) 0%, transparent 100%),
+    radial-gradient(circle 4px at 55% 25%, rgba(100, 0, 170, 0.15) 0%, transparent 100%),
+    /* Absolute ink-purple blackness */
+    linear-gradient(
+      to bottom,
+      #060012 0%,
+      #04000e 25%,
+      #030009 50%,
+      #020007 75%,
+      #010004 100%
+    );
+  background-color: #010004;
+}
+
+
+/* ============================================================
+   PATH 4: SUNKEN ATLANTIS
+   Ancient ruins submerged for millennia — warm-amber
+   filtered water over stone, from dappled shallows to
+   eerie statue-lit depths
+   ============================================================ */
+
+/* Stage 1 — Ruins Shallows (warm, silty, sun-dappled) */
+.path4-stage1 {
+  background:
+    /* Warm caustic light patterns through silty water */
+    repeating-linear-gradient(
+      165deg,
+      transparent 0%,
+      rgba(220, 180, 80, 0.05) 0.5%,
+      transparent 1.2%,
+      transparent 4%
+    ),
+    repeating-linear-gradient(
+      178deg,
+      transparent 0%,
+      rgba(200, 160, 60, 0.04) 0.4%,
+      transparent 1%,
+      transparent 5%
+    ),
+    /* Warm teal-gold water column */
+    linear-gradient(
+      to bottom,
+      #1e8888 0%,
+      #1a7a78 10%,
+      #166860 22%,
+      #12584e 35%,
+      #0e4a40 50%,
+      #0c3e34 65%,
+      #0a3228 80%,
+      #08281e 100%
+    );
+  background-color: #08281e;
+}
+
+/* Stage 2 — Grand Coliseum Depths (deeper amber haze) */
+.path4-stage2 {
+  background:
+    /* Ethereal amber columns of silt-filtered light */
+    radial-gradient(ellipse 40% 80% at 20% 0%, rgba(180, 130, 50, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 70% at 75% 0%, rgba(160, 110, 40, 0.06) 0%, transparent 55%),
+    /* Silt particulate haze near bottom */
+    radial-gradient(ellipse 100% 25% at 50% 100%, rgba(140, 90, 20, 0.12) 0%, transparent 70%),
+    /* Deep amber-green water */
+    linear-gradient(
+      to bottom,
+      #0c3430 0%,
+      #0a2b28 15%,
+      #082220 30%,
+      #071c1a 50%,
+      #061614 70%,
+      #051210 85%,
+      #040e0c 100%
+    );
+  background-color: #040e0c;
+}
+
+/* Stage 3 — Crystal Palace Core (eerie blue-white crystal glow) */
+.path4-stage3 {
+  background:
+    /* Glowing crystal formations — cold blue-white against dark */
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(80, 160, 200, 0.14) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 20% at 15% 80%, rgba(60, 140, 190, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 18% at 85% 70%, rgba(70, 150, 195, 0.1) 0%, transparent 55%),
+    /* Crystal glint spots */
+    radial-gradient(circle 6px at 30% 75%, rgba(150, 220, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(circle 5px at 65% 85%, rgba(140, 210, 250, 0.18) 0%, transparent 100%),
+    radial-gradient(circle 4px at 50% 65%, rgba(160, 230, 255, 0.15) 0%, transparent 100%),
+    /* Very dark teal-black base */
+    linear-gradient(
+      to bottom,
+      #050f12 0%,
+      #040c10 20%,
+      #03090d 40%,
+      #020709 60%,
+      #010507 80%,
+      #010305 100%
+    );
+  background-color: #010305;
+}
+
+
+/* ============================================================
+   PATH 5: VOLCANIC VENT
+   Superheated seafloor — from warm mineral-orange to
+   blazing red-orange lava glow, lit entirely from below
+   ============================================================ */
+
+/* Stage 1 — Mineral Field (warm orange-yellow mineral haze) */
+.path5-stage1 {
+  background:
+    /* Mineral-rich upwelling plumes from vents */
+    radial-gradient(ellipse 30% 60% at 25% 100%, rgba(200, 120, 20, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 25% 50% at 75% 100%, rgba(190, 100, 15, 0.12) 0%, transparent 65%),
+    /* Warm particle haze rising */
+    radial-gradient(ellipse 100% 20% at 50% 100%, rgba(220, 140, 30, 0.1) 0%, transparent 60%),
+    /* Deep amber-teal water lit from below */
+    linear-gradient(
+      to bottom,
+      #093540 0%,
+      #0b2e38 10%,
+      #0c2830 22%,
+      #0e2228 35%,
+      #111e24 50%,
+      #141a1e 65%,
+      #181618 80%,
+      #1e1210 100%
+    );
+  background-color: #1e1210;
+}
+
+/* Stage 2 — Superheated Vent Cluster (orange-red glow dominates) */
+.path5-stage2 {
+  background:
+    /* Intense heat bloom from vent clusters below */
+    radial-gradient(ellipse 100% 50% at 50% 100%, rgba(220, 80, 10, 0.3) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 35% at 25% 100%, rgba(200, 60, 8, 0.2) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 30% at 75% 100%, rgba(210, 70, 10, 0.2) 0%, transparent 60%),
+    /* Superheated shimmer columns */
+    radial-gradient(ellipse 15% 70% at 30% 80%, rgba(230, 100, 20, 0.08) 0%, transparent 80%),
+    radial-gradient(ellipse 12% 60% at 65% 90%, rgba(220, 90, 15, 0.07) 0%, transparent 75%),
+    /* Dark red-black base — glowing from below */
+    linear-gradient(
+      to bottom,
+      #1a0c0c 0%,
+      #1e0c0a 10%,
+      #240e08 22%,
+      #2c1006 35%,
+      #341208 50%,
+      #3e160a 65%,
+      #481808 80%,
+      #561a06 100%
+    );
+  background-color: #561a06;
+}
+
+/* Stage 3 — Lava Caldera (molten eruption, maximum heat) */
+.path5-stage3 {
+  background:
+    /* Erupting lava light — blinding orange-white core */
+    radial-gradient(ellipse 80% 40% at 50% 100%, rgba(255, 180, 20, 0.35) 0%, rgba(255, 80, 0, 0.25) 35%, transparent 70%),
+    radial-gradient(ellipse 50% 25% at 50% 100%, rgba(255, 220, 80, 0.25) 0%, transparent 50%),
+    /* Secondary vent bursts */
+    radial-gradient(ellipse 30% 45% at 15% 100%, rgba(255, 100, 0, 0.2) 0%, transparent 65%),
+    radial-gradient(ellipse 25% 40% at 85% 100%, rgba(240, 90, 0, 0.18) 0%, transparent 60%),
+    /* Ash cloud dark band mid-screen */
+    radial-gradient(ellipse 100% 20% at 50% 45%, rgba(10, 5, 5, 0.35) 0%, transparent 70%),
+    /* Inferno base — deep red to charcoal black above, blazing below */
+    linear-gradient(
+      to bottom,
+      #0a0404 0%,
+      #120506 15%,
+      #1c0606 28%,
+      #2a0804 40%,
+      #3c0c04 52%,
+      #521408 62%,
+      #6e1a06 72%,
+      #8c2204 82%,
+      #b03008 91%,
+      #d44010 100%
+    );
+  background-color: #d44010;
+}
+
+
+/* ============================================================
+   UTILITY: Smooth Stage Transitions
+   Wrap .game-bg in a container and toggle classes with JS.
+   The transition eases the background shift over 1.2s.
+   ============================================================ */
+
+.game-bg {
+  width: 100%;
+  height: 100%;
+  transition: background 1.2s ease-in-out, background-color 1.2s ease-in-out;
+  /* Ensure pixel-perfect rendering for game viewport */
+  will-change: background;
+}
+
+/* ============================================================
+   QUICK REFERENCE — Class Names
+   ─────────────────────────────────────────────────────────
+   PATH 1 — Kelp Forest
+     .path1-stage1  →  Sunlit Surface Layer
+     .path1-stage2  →  Mid Canopy (filtered green)
+     .path1-stage3  →  Deep Kelp Floor (near-dark)
+
+   PATH 2 — Abyssal Chasm
+     .path2-stage1  →  Twilight Zone (mesopelagic)
+     .path2-stage2  →  Midnight Zone (bathypelagic)
+     .path2-stage3  →  Abyssal Floor (hadal dark)
+
+   PATH 3 — Kraken's Lair
+     .path3-stage1  →  Cave Entrance
+     .path3-stage2  →  Ink Cloud Chamber
+     .path3-stage3  →  Kraken's Heart (bio-pulse glow)
+
+   PATH 4 — Sunken Atlantis
+     .path4-stage1  →  Ruins Shallows (warm, silty)
+     .path4-stage2  →  Grand Coliseum Depths
+     .path4-stage3  →  Crystal Palace Core
+
+   PATH 5 — Volcanic Vent
+     .path5-stage1  →  Mineral Field
+     .path5-stage2  →  Superheated Vent Cluster
+     .path5-stage3  →  Lava Caldera (eruption)
+   ============================================================ */

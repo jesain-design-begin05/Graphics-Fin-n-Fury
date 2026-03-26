@@ -9,8 +9,8 @@
  * Must be called before loadSprites().
  */
 function initSpriteContainers(game) {
-    game.bgImages  = {};
-    game.fgImages  = {};
+    // bgImages / fgImages removed — backgrounds now use CSS classes
+    // (see STAGE_CSS_CLASS in constants.js + applyBgClass in game.js)
 
     game.clownfishRestLeft    = {}; game.clownfishRestRight   = {};
     game.clownfishSwimLeft    = {}; game.clownfishSwimRight   = {};
@@ -51,8 +51,12 @@ function initSpriteContainers(game) {
     game.decoCoral3      = null;
     game.decoFishShadow  = null;
     game.decoSeagrass    = null;
+    game.decoSeaweed     = null;   // ← seaweed_sprite.png
     game.clamClosedSprite = null;  // pearl.png  = clam closed
     game.clamOpenSprite   = null;  // pearl1_2.png = clam open with pearl
+
+    // ── Manta ray ─────────────────────────────────────────────
+    game.mantaRayImg = null;       // manta_ray.png  (3 cols × 3 rows)
 }
 
 /**
@@ -63,25 +67,8 @@ function loadSprites(game) {
     const img = () => new Image();
 
     // ── Backgrounds ───────────────────────────────────────────
-    // STAGE_BG_MAP (constants.js) now uses direct { bg, fg } paths
-    // that point straight at the PNG files on disk, e.g.:
-    //   { bg: 'backgrounds_new/Path_1_kelpforests.png', fg: null }
-    //
-    // game.bgImages[N] / game.fgImages[N] are keyed by global stage
-    // number (1-15) so the renderer can look them up via game.stage.
-    for (let s = 1; s <= 15; s++) {
-        const map = STAGE_BG_MAP[s];
-        if (map) {
-            if (map.bg) {
-                game.bgImages[s] = img();
-                game.bgImages[s].src = map.bg;
-            }
-            if (map.fg) {
-                game.fgImages[s] = img();
-                game.fgImages[s].src = map.fg;
-            }
-        }
-    }
+    // Backgrounds are now pure CSS gradients (maps_and_stages.css).
+    // No image loading needed — applyBgClass() in game.js handles it.
 
     // ── Fish sprite sheets ────────────────────────────────────
     const types = [
@@ -96,21 +83,21 @@ function loadSprites(game) {
 
     for (const [name, folder, rL, rR, sL, sR] of types) {
         for (let f = 1; f <= 6; f++) {
-            rL[f] = img(); rL[f].src = `fish_sprites/${folder}/${name}-rest-right-${f}.png`;
-            rR[f] = img(); rR[f].src = `fish_sprites/${folder}/${name}-rest-left-${f}.png`;
-            sL[f] = img(); sL[f].src = `fish_sprites/${folder}/${name}-swim-right-${f}.png`;
-            sR[f] = img(); sR[f].src = `fish_sprites/${folder}/${name}-swim-left-${f}.png`;
+            rL[f] = img(); rL[f].src = `fish_sprites/${folder}/${name}-rest-left-${f}.png`;
+            rR[f] = img(); rR[f].src = `fish_sprites/${folder}/${name}-rest-right-${f}.png`;
+            sL[f] = img(); sL[f].src = `fish_sprites/${folder}/${name}-swim-left-${f}.png`;
+            sR[f] = img(); sR[f].src = `fish_sprites/${folder}/${name}-swim-right-${f}.png`;
         }
     }
 
     // ── Special animation frames ──────────────────────────────
     for (let f = 1; f <= 6; f++) {
-        game.mainfishAttackLeft[f]      = img(); game.mainfishAttackLeft[f].src      = `fish_sprites/mainfish_attack_sprite/mainfish-attack-right-${f}.png`;
-        game.mainfishAttackRight[f]     = img(); game.mainfishAttackRight[f].src     = `fish_sprites/mainfish_attack_sprite/mainfish-attack-left-${f}.png`;
-        game.furyfishAttackLeft[f]      = img(); game.furyfishAttackLeft[f].src      = `fish_sprites/furyfish_attack_sprite/furyfish-attack-right-${f}.png`;
-        game.furyfishAttackRight[f]     = img(); game.furyfishAttackRight[f].src     = `fish_sprites/furyfish_attack_sprite/furyfish-attack-left-${f}.png`;
-        game.furyfishAttackAltLeft[f]   = img(); game.furyfishAttackAltLeft[f].src   = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-right-${f}.png`;
-        game.furyfishAttackAltRight[f]  = img(); game.furyfishAttackAltRight[f].src  = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-left-${f}.png`;
+        game.mainfishAttackLeft[f]      = img(); game.mainfishAttackLeft[f].src      = `fish_sprites/mainfish_attack_sprite/mainfish-attack-left-${f}.png`;
+        game.mainfishAttackRight[f]     = img(); game.mainfishAttackRight[f].src     = `fish_sprites/mainfish_attack_sprite/mainfish-attack-right-${f}.png`;
+        game.furyfishAttackLeft[f]      = img(); game.furyfishAttackLeft[f].src      = `fish_sprites/furyfish_attack_sprite/furyfish-attack-left-${f}.png`;
+        game.furyfishAttackRight[f]     = img(); game.furyfishAttackRight[f].src     = `fish_sprites/furyfish_attack_sprite/furyfish-attack-right-${f}.png`;
+        game.furyfishAttackAltLeft[f]   = img(); game.furyfishAttackAltLeft[f].src   = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-left-${f}.png`;
+        game.furyfishAttackAltRight[f]  = img(); game.furyfishAttackAltRight[f].src  = `fish_sprites/furyfish_attack_sprite/furyfish-attack-alt-right-${f}.png`;
     }
 
     // ── New sprite sheets ─────────────────────────────────────
@@ -118,7 +105,7 @@ function loadSprites(game) {
     game.furySheet = img();
 
     game.finSheet.src  = 'fish_sprites/Finnew_sprite/fin_sprite-removebg-previeww.png';
-    game.furySheet.src = 'fish_sprites/furynew_sprite/fury_sprite_animation-removebg-preview.png';
+    game.furySheet.src = 'fish_sprites/furyfish_sprite/furyfish.png';
 
     // Boss image — bigguy.jpg
     game.bossImg = img();
@@ -142,8 +129,13 @@ function loadSprites(game) {
     game.decoCoral3     = img(); game.decoCoral3.src     = 'coral3.png';
     game.decoFishShadow = img(); game.decoFishShadow.src = 'fishshadow.png';
     game.decoSeagrass   = img(); game.decoSeagrass.src   = 'seagras.png';
+    game.decoSeaweed    = img(); game.decoSeaweed.src    = 'seaweed_sprite.png';
     game.clamClosedSprite = img(); game.clamClosedSprite.src = 'pearl.png';
     game.clamOpenSprite   = img(); game.clamOpenSprite.src   = 'pearl1_2.png';
+
+    // ── Manta ray sprite sheet (3 cols × 3 rows = 9 frames) ──
+    game.mantaRayImg = img();
+    game.mantaRayImg.src = 'element_sprites/manta_ray.png';
 
     // ── Projectile frames (8 frames, zero-padded) ─────────────
     for (let f = 1; f <= 8; f++) {

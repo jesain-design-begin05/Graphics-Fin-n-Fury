@@ -43,6 +43,19 @@ function spawnStageEntities(game) {
     game.boss           = null;
     game.bossDefeated   = false;
 
+    // ── Manta ray — slow background glider, top/mid area ─────
+    game.mantaRay = {
+        x:          Math.random() * W,
+        y:          H * 0.10 + Math.random() * H * 0.20, // 10%–30% down
+        vx:         (Math.random() > 0.5 ? 1 : -1) * 55, // slow majestic glide
+        bobOffset:  Math.random() * Math.PI * 2,
+        frameCol:   0,
+        frameRow:   0,
+        frameTimer: 0,
+        COLS: 3,
+        ROWS: 3,
+    };
+
     const mkDef = (type, yMin, yMax, extra) => makeFish(
         W, H, yMin, yMax,
         FISH_DEF[type].speedMin, FISH_DEF[type].speedMax,
@@ -224,9 +237,36 @@ function updateBoss(game, dt) {
     b.x = Math.max(120, Math.min(W - 120, b.x));
     b.y = Math.max(120, Math.min(H - 120, b.y));
 }
+
 // ────────────────────────────────────────────────────────────────
-//  Decorations — static world props (boat, corals, seagrass, shadow)
-//  Called once per stage from spawnStageEntities.
+//  Manta ray — slow gliding background creature, top/mid water
+// ────────────────────────────────────────────────────────────────
+
+function updateMantaRay(game, dt) {
+    const m = game.mantaRay;
+    if (!m) return;
+
+    // Advance sprite frame every 0.12 s → ~8 fps animation
+    m.frameTimer += dt;
+    if (m.frameTimer >= 0.12) {
+        m.frameTimer = 0;
+        m.frameCol = (m.frameCol + 1) % m.COLS;
+        // Advance row after each full column cycle (loops all 9 frames)
+        if (m.frameCol === 0) m.frameRow = (m.frameRow + 1) % m.ROWS;
+    }
+
+    m.x += m.vx * dt;
+
+    // World-edge wrap — same pattern as all other fish
+    const margin = 80;
+    if      (m.vx > 0 && m.x > game.world.w - margin) m.x = margin + 10;
+    else if (m.vx < 0 && m.x < margin)                 m.x = game.world.w - margin - 10;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Decorations — static world props (boat, corals, seagrass,
+//  seaweed, fish shadow).  Called once per stage from
+//  spawnStageEntities.
 // ────────────────────────────────────────────────────────────────
 
 function spawnDecorations(game) {
@@ -248,4 +288,26 @@ function spawnDecorations(game) {
         // Large fish shadow drifting mid-water in background
         { type: 'fishshadow', x: W * 0.20 + Math.random() * W * 0.60, y: H * 0.38 + Math.random() * H * 0.20, scale: 1.10 },
     ];
+
+    // ── Seaweed — 1 to 3 clumps per stage, random X along the floor ──
+    // Count is re-rolled every stage so density varies between paths/stages.
+    const seaweedCount = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+
+    // Divide the world width into equal zones so they never clump together.
+    // Each zone gets one seaweed placed at a random X within that zone.
+    const zoneW = W / seaweedCount;
+    for (let i = 0; i < seaweedCount; i++) {
+        const zoneStart = zoneW * i;
+        // Keep away from the very edges (10% margin each side of the zone)
+        const safeStart = zoneStart + zoneW * 0.10;
+        const safeRange = zoneW * 0.80;
+        game.decoItems.push({
+            type:  'seaweed',
+            x:     safeStart + Math.random() * safeRange,
+            // Y sits right at the sea floor — same band as seagrass/corals
+            y:     H * 0.88 + Math.random() * H * 0.05,
+            // Scale varies a little so each clump looks slightly different
+            scale: 0.55 + Math.random() * 0.25,   // 0.55 – 0.80
+        });
+    }
 }

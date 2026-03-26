@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,400;0,600;0,700;1,400&family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="maps_and_stages.css">
 
 <style>
 html, body {
@@ -19,7 +20,13 @@ html, body {
   display: block;
   width: 100vw; height: 100vh;
 }
-#gameCanvas { display: none; background: #001428; }
+#gameCanvas {
+  display: none;
+  background-color: #001428; /* fallback — overridden by path class */
+  background-size: cover;
+  background-position: center;
+  transition: background 1.2s ease-in-out, background-color 1.2s ease-in-out;
+}
 #menuCanvas { display: block; }
 
 /* ════════════════════════════════════════════════
@@ -557,6 +564,7 @@ html, body {
 <script src="entities.js"></script>
 <script src="collisions.js"></script>
 <script src="renderer.js"></script>
+<script src="game_bg.js"></script>
 <script src="game.js"></script>
 <script src="menu.js"></script>
 <script src="stagemap.js"></script>
