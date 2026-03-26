@@ -15,28 +15,20 @@ function drawFrame(game) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, vW, vH);
 
-    // Stages 1-5 → bg 1-5, stages 6-10 → bg 6-10, stages 11-15 → bg 11-15
-    // Each biome has 5 backgrounds; clamp to available range
-    const bgIdx = Math.min(Math.max(game.stage, 1), 15);
+    // ── Background: CSS gradient class from maps_and_stages.css ──
+    // The canvas element carries a class like "path1-stage1".
+    // applyBgClass() in game.js sets it when the stage changes.
+    // Canvas background-color shows through clearRect — no draw needed.
 
-    // ── Background stretched over full world (Feeding Frenzy style) ──
-    const bg = game.bgImages[bgIdx];
-    if (bg && bg.complete && bg.naturalWidth !== 0) {
-        ctx.drawImage(bg,
-            -game.cam.x, -game.cam.y,
-            game.world.w, game.world.h
-        );
-    } else {
-        // Fallback: vivid ocean gradient (NOT near-black)
-        const g = ctx.createLinearGradient(0, 0, 0, vH);
-        g.addColorStop(0,   '#003a6e');
-        g.addColorStop(0.5, '#005a9e');
-        g.addColorStop(1,   '#007abf');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, vW, vH);
-    }
+    // ── Dynamic zoom: scale world around viewport centre ─────────
+    const zoom = game.camZoom || 1.0;
+    ctx.save();
+    ctx.translate(vW / 2, vH / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-vW / 2, -vH / 2);
 
     drawAtmosphere(game, ctx, vW, vH);
+    drawMantaRay(game, ctx);        // ← manta ray behind all other entities
     drawDecorations(game, ctx);
     drawBgFish(game, ctx);
     drawBoss(game, ctx);
@@ -44,18 +36,12 @@ function drawFrame(game) {
     drawProjectiles(game, ctx);
     drawPlayerFish(game, ctx);
     drawFloatingTexts(game, ctx);
+    drawBubbleTexts(ctx, game, game._lastDt || 0.016);   // ← eat-bubble speech clouds
 
-    // ── Foreground layer (parallax) ──
-    const fg = game.fgImages[bgIdx];
-    if (fg && fg.complete && fg.naturalWidth !== 0) {
-        ctx.save();
-        ctx.globalAlpha = 0.88;
-        ctx.drawImage(fg,
-            -game.cam.x * 1.08, -game.cam.y * 1.08,
-            game.world.w * 1.08, game.world.h * 1.08
-        );
-        ctx.restore();
-    }
+    // ── Foreground layer ──
+    // (CSS background has no separate fg layer — decorations handle foreground detail)
+
+    ctx.restore(); // end world zoom transform
 
     drawHUD(game, ctx, vW, vH);
     drawHitFlash(game, ctx, vW, vH);
@@ -98,7 +84,46 @@ function drawAtmosphere(game, ctx, W, H) {
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Decorations — boat, corals, seagrass, fish shadow
+//  Manta ray — slow background glider, top/mid water
+//  Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
+// ────────────────────────────────────────────────────────────────
+
+function drawMantaRay(game, ctx) {
+    const m = game.mantaRay;
+    if (!m) return;
+    const img = game.mantaRayImg;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    // Sheet: 4 cols × 2 rows = 8 frames, sprite faces LEFT naturally
+    const frameW = img.naturalWidth  / m.COLS;
+    const frameH = img.naturalHeight / m.ROWS;
+    const scale  = 0.55; // adjust to taste
+    const drawW  = frameW * scale;
+    const drawH  = frameH * scale;
+
+    const s   = worldToScreen(game, m.x, m.y);
+    const bob = Math.sin(game.elapsed * 0.8 + m.bobOffset) * 10;
+    const sx  = m.frameCol * frameW;
+    const sy  = m.frameRow * frameH;
+
+    ctx.save();
+    ctx.globalAlpha = 0.88; // slightly translucent — feels like background depth
+
+    if (m.vx < 0) {
+        // Swimming left — sprite naturally faces left, draw normally
+        ctx.drawImage(img, sx, sy, frameW, frameH, s.x - drawW / 2, s.y - drawH / 2 + bob, drawW, drawH);
+    } else {
+        // Swimming right — flip horizontally
+        ctx.translate(s.x, s.y + bob);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH / 2, drawW, drawH);
+    }
+
+    ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Decorations — boat, corals, seagrass, seaweed, fish shadow
 // ────────────────────────────────────────────────────────────────
 
 function drawDecorations(game, ctx) {
@@ -108,33 +133,35 @@ function drawDecorations(game, ctx) {
     for (const d of game.decoItems) {
         if (!isOnScreen(game, d.x, d.y, 220)) continue;
 
-        let img = null;
+        let img   = null;
         let alpha = 1.0;
-        let bob = 0;
-
-        let sway = 0;  // rotation angle in radians for swaying items
+        let bob   = 0;
+        let sway  = 0;
 
         switch (d.type) {
             case 'boat':
-                img   = game.decoBoat;
-                bob   = Math.sin(e * 0.6 + 1.2) * 4;
+                img = game.decoBoat;
+                bob = Math.sin(e * 0.6 + 1.2) * 4;
                 break;
             case 'coral1':
-                img   = game.decoCoral1;
-                // Sway from base: rotate around bottom-center
-                sway  = Math.sin(e * 0.9 + d.x * 0.007) * 0.045
-                      + Math.sin(e * 1.7 + d.x * 0.013) * 0.018;
+                img  = game.decoCoral1;
+                sway = Math.sin(e * 0.9  + d.x * 0.007) * 0.045
+                     + Math.sin(e * 1.7  + d.x * 0.013) * 0.018;
                 break;
             case 'coral3':
-                img   = game.decoCoral3;
-                sway  = Math.sin(e * 0.75 + d.x * 0.009) * 0.038
-                      + Math.sin(e * 1.5  + d.x * 0.017) * 0.015;
+                img  = game.decoCoral3;
+                sway = Math.sin(e * 0.75 + d.x * 0.009) * 0.038
+                     + Math.sin(e * 1.5  + d.x * 0.017) * 0.015;
                 break;
             case 'seagrass':
-                img   = game.decoSeagrass;
-                // Stronger, faster sway — seagrass is tall and flexible
-                sway  = Math.sin(e * 1.2 + d.x * 0.011) * 0.10
-                      + Math.sin(e * 2.1 + d.x * 0.019) * 0.035;
+                img  = game.decoSeagrass;
+                sway = Math.sin(e * 1.2  + d.x * 0.011) * 0.10
+                     + Math.sin(e * 2.1  + d.x * 0.019) * 0.035;
+                break;
+            case 'seaweed':
+                img  = game.decoSeaweed;
+                sway = Math.sin(e * 0.95 + d.x * 0.010) * 0.13
+                     + Math.sin(e * 1.85 + d.x * 0.018) * 0.045;
                 break;
             case 'fishshadow':
                 img   = game.decoFishShadow;
@@ -145,15 +172,14 @@ function drawDecorations(game, ctx) {
 
         if (!img || !img.complete || img.naturalWidth === 0) continue;
 
-        const s  = worldToScreen(game, d.x, d.y);
-        const w  = img.naturalWidth  * d.scale;
-        const h  = img.naturalHeight * d.scale;
+        const s = worldToScreen(game, d.x, d.y);
+        const w = img.naturalWidth  * d.scale;
+        const h = img.naturalHeight * d.scale;
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
         if (sway !== 0) {
-            // Rotate around the bottom-center of the image (where it meets the ground)
             const baseX = s.x;
             const baseY = s.y + h / 2;
             ctx.translate(baseX, baseY);
@@ -230,245 +256,82 @@ function drawBgFish(game, ctx) {
     drawSet(game.bgTertiaryfish, game.tertiaryRestLeft,   game.tertiaryRestRight,   game.tertiarySwimLeft,   game.tertiarySwimRight,   FISH_SCALE.tertiary,   2);
     drawSet(game.bgTunafish,     game.tunafishRestLeft,   game.tunafishRestRight,   game.tunafishSwimLeft,   game.tunafishSwimRight,   FISH_SCALE.tunafish,   3);
 
-    // ── Furyfish + Enemy — fully drawn in canvas (no sprite) ────
-    const _drawFuryFish = (ctx, e, sc, isL, isAttacking, bobOffset, frameOffset, colorSet) => {
-        const t = e * 6 + frameOffset;          // animation time per fish
-        const w = 110 * sc, h = 78 * sc;        // base body size
+    // ── Furyfish + Enemy — furyfish.png (3 cols × 2 rows) ───────
+    const fSheet        = game.furySheet;
+    const hasFSheet     = fSheet && fSheet.complete && fSheet.naturalWidth > 0;
+    const FURY_SHEET_SCALE = 0.38;
+    {
+        const FURY_SC = FISH_SCALE.furyfish;
 
-        // ── Tail wag ──────────────────────────────────────────
-        const tailWag = isAttacking
-            ? Math.sin(t * 2.2) * 22 * sc       // frantic wag when attacking
-            : Math.sin(t * 0.9) * 9 * sc;       // gentle swim wag
+        for (const f of game.bgFuryfish) {
+            if (!isOnScreen(game, f.x, f.y, 160)) continue;
+            const s   = worldToScreen(game, f.x, f.y);
+            const isL = f.vx < 0;
+            const sc  = FURY_SC * (f.isAttacking ? 1.10 : 1.0);
+            const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
+            const { dw, dh } = _furyFrameSize(fSheet, sc * FURY_SHEET_SCALE);
 
-        // ── Mouth open amount ─────────────────────────────────
-        const mouthOpen = isAttacking
-            ? Math.max(0, Math.sin(t * 1.8)) * 0.9   // chomps open/closed
-            : 0.08;                                    // slightly open at rest
-
-        ctx.save();
-        if (!isL) ctx.scale(-1, 1);   // fish faces LEFT naturally
-
-        // ── Tail (drawn first, behind body) ───────────────────
-        ctx.save();
-        // Main tail fan
-        const tailX = w * 0.38;
-        const tailY = tailWag;
-        ctx.fillStyle = colorSet.tail;
-        ctx.beginPath();
-        ctx.moveTo(tailX, 0);
-        ctx.bezierCurveTo(tailX + w*0.28, -h*0.38 + tailY, tailX + w*0.52, -h*0.42 + tailY*0.6, tailX + w*0.48, -h*0.28 + tailY*0.4);
-        ctx.bezierCurveTo(tailX + w*0.38, -h*0.08, tailX + w*0.28, 0, tailX, 0);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(tailX, 0);
-        ctx.bezierCurveTo(tailX + w*0.28, h*0.38 + tailY, tailX + w*0.52, h*0.42 + tailY*0.6, tailX + w*0.48, h*0.28 + tailY*0.4);
-        ctx.bezierCurveTo(tailX + w*0.38, h*0.08, tailX + w*0.28, 0, tailX, 0);
-        ctx.fill();
-        // Tail fin detail lines
-        ctx.strokeStyle = colorSet.finLine;
-        ctx.lineWidth = 1.2 * sc;
-        for (let i = 0; i < 3; i++) {
-            const ly = (i - 1) * h * 0.12 + tailY * 0.3;
-            ctx.beginPath();
-            ctx.moveTo(tailX + w*0.05, ly);
-            ctx.lineTo(tailX + w*0.44 + (i===1?0.02:0), ly * 0.5 + tailY*(0.2+i*0.1));
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        // ── Dorsal fin ────────────────────────────────────────
-        ctx.fillStyle = colorSet.fin;
-        const dorsalWave = Math.sin(t * 0.7) * 3 * sc;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.05, -h*0.38);
-        ctx.bezierCurveTo(-w*0.02, -h*0.72 + dorsalWave, w*0.18, -h*0.78 + dorsalWave, w*0.25, -h*0.42);
-        ctx.bezierCurveTo(w*0.18, -h*0.38, w*0.05, -h*0.38, -w*0.05, -h*0.38);
-        ctx.fill();
-        // Dorsal fin spines
-        ctx.strokeStyle = colorSet.spine;
-        ctx.lineWidth = 1.0 * sc;
-        for (let i = 0; i < 4; i++) {
-            const fx = -w*0.02 + i * w*0.09;
-            const fy = -h*0.38 - (i<2 ? (i+1)*h*0.08 : (4-i)*h*0.06) + dorsalWave;
-            ctx.beginPath(); ctx.moveTo(fx, -h*0.38); ctx.lineTo(fx, fy); ctx.stroke();
-        }
-
-        // ── Pectoral fin ─────────────────────────────────────
-        const pectoralWave = Math.sin(t * 1.1 + 0.5) * 4 * sc;
-        ctx.fillStyle = colorSet.fin;
-        ctx.beginPath();
-        ctx.moveTo(w*0.05, h*0.05);
-        ctx.bezierCurveTo(w*0.12, h*0.45 + pectoralWave, w*0.28, h*0.52 + pectoralWave, w*0.22, h*0.38);
-        ctx.bezierCurveTo(w*0.15, h*0.22, w*0.08, h*0.12, w*0.05, h*0.05);
-        ctx.fill();
-
-        // ── Body ─────────────────────────────────────────────
-        const bodyGrad = ctx.createRadialGradient(-w*0.1, -h*0.1, h*0.05, 0, 0, w*0.7);
-        bodyGrad.addColorStop(0, colorSet.bodyLight);
-        bodyGrad.addColorStop(0.6, colorSet.body);
-        bodyGrad.addColorStop(1, colorSet.bodyDark);
-        ctx.fillStyle = bodyGrad;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, w*0.52, h*0.44, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Scale texture
-        ctx.strokeStyle = colorSet.scale;
-        ctx.lineWidth = 0.8 * sc;
-        for (let row2 = -1; row2 <= 1; row2++) {
-            for (let col2 = 0; col2 <= 2; col2++) {
-                const sx = -w*0.12 + col2 * w*0.18 + (row2&1) * w*0.09;
-                const sy = row2 * h*0.14;
-                ctx.beginPath();
-                ctx.arc(sx, sy, w*0.07, Math.PI*0.2, Math.PI*0.9);
-                ctx.stroke();
-            }
-        }
-
-        // ── Angler lure (antenna) ─────────────────────────────
-        const lureWave = Math.sin(t * 1.3) * 5 * sc;
-        ctx.strokeStyle = colorSet.antenna;
-        ctx.lineWidth = 1.5 * sc;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.28, -h*0.44);
-        ctx.bezierCurveTo(-w*0.22, -h*0.75, -w*0.05, -h*0.82 + lureWave, w*0.08, -h*0.72 + lureWave);
-        ctx.stroke();
-        // Lure glow ball
-        const lurePulse = 0.6 + Math.sin(t * 2.1) * 0.4;
-        ctx.save();
-        ctx.shadowColor = `rgba(180,255,180,${lurePulse})`;
-        ctx.shadowBlur = 8 * sc;
-        ctx.fillStyle = `rgba(160,255,180,${0.7 + lurePulse * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(w*0.08, -h*0.72 + lureWave, 5 * sc, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // ── Hat ───────────────────────────────────────────────
-        const hatX = -w*0.12, hatY = -h*0.44;
-        // Brim
-        ctx.fillStyle = colorSet.hat;
-        ctx.beginPath();
-        ctx.ellipse(hatX, hatY + h*0.07, w*0.28, h*0.07, -0.15, 0, Math.PI*2);
-        ctx.fill();
-        // Crown
-        ctx.beginPath();
-        ctx.roundRect(hatX - w*0.18, hatY - h*0.22, w*0.36, h*0.30, 4*sc);
-        ctx.fill();
-        // Hat band
-        ctx.fillStyle = colorSet.hatBand;
-        ctx.fillRect(hatX - w*0.18, hatY - h*0.02, w*0.36, h*0.07);
-        // Buckle
-        ctx.fillStyle = '#e8c840';
-        ctx.fillRect(hatX - w*0.04, hatY, w*0.08, h*0.07);
-        ctx.strokeStyle = '#a08820'; ctx.lineWidth = 0.8*sc;
-        ctx.strokeRect(hatX - w*0.04, hatY, w*0.08, h*0.07);
-
-        // ── Eye patch + eye ───────────────────────────────────
-        ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.ellipse(-w*0.24, -h*0.08, w*0.095, h*0.09, 0, 0, Math.PI*2); ctx.fill();
-        // Patch strap
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 2*sc;
-        ctx.beginPath(); ctx.moveTo(-w*0.18, -h*0.12); ctx.lineTo(-w*0.08, -h*0.16); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-w*0.18, -h*0.04); ctx.lineTo(-w*0.08, h*0.02); ctx.stroke();
-
-        // ── Mouth ─────────────────────────────────────────────
-        const mouthH = h * 0.30 * mouthOpen + h * 0.04;
-        const mouthY = h * 0.10;
-        // Mouth cavity
-        ctx.fillStyle = colorSet.mouth;
-        ctx.beginPath();
-        ctx.ellipse(-w*0.26, mouthY, w*0.26, mouthH, 0, 0, Math.PI*2);
-        ctx.fill();
-        // Tongue when open
-        if (mouthOpen > 0.3) {
-            ctx.fillStyle = colorSet.tongue;
-            ctx.beginPath();
-            ctx.ellipse(-w*0.26, mouthY + mouthH*0.3, w*0.12, mouthH*0.45, 0, 0, Math.PI*2);
-            ctx.fill();
-        }
-        // Upper teeth
-        ctx.fillStyle = '#e8e8e8';
-        const teethCount = 5;
-        for (let i = 0; i < teethCount; i++) {
-            const tx = -w*0.44 + i * w*0.095;
-            const ty = mouthY - mouthH * 0.55;
-            const th = h * (0.12 + (i===2?0.06:0)) * Math.max(0.3, mouthOpen + 0.4);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + w*0.04, ty + th);
-            ctx.lineTo(tx + w*0.085, ty);
-            ctx.closePath(); ctx.fill();
-        }
-        // Lower teeth
-        for (let i = 0; i < teethCount - 1; i++) {
-            const tx = -w*0.40 + i * w*0.095;
-            const ty = mouthY + mouthH * 0.55;
-            const th = h * (0.10 + (i===1?0.05:0)) * Math.max(0.3, mouthOpen + 0.3);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + w*0.04, ty - th);
-            ctx.lineTo(tx + w*0.085, ty);
-            ctx.closePath(); ctx.fill();
-        }
-
-        // ── Attack red glow around mouth ──────────────────────
-        if (isAttacking && mouthOpen > 0.4) {
             ctx.save();
-            ctx.shadowColor = 'rgba(255,40,0,0.7)';
-            ctx.shadowBlur = 18 * sc;
-            ctx.strokeStyle = 'rgba(255,60,0,0.5)';
-            ctx.lineWidth = 2 * sc;
-            ctx.beginPath();
-            ctx.ellipse(-w*0.26, mouthY, w*0.28, mouthH + h*0.04, 0, 0, Math.PI*2);
-            ctx.stroke();
+            ctx.translate(s.x, s.y + bob);
+
+            if (f.isAttacking) {
+                ctx.shadowColor = `rgba(180,0,0,${0.45 + Math.sin(e * 8) * 0.25})`;
+                ctx.shadowBlur  = 16 + Math.sin(e * 8) * 6;
+            }
+
+            if (hasFSheet) {
+                const col = Math.floor((e * 8 + f.frameOffset) % FURY_COLS);
+                const row = f.isAttacking ? FURY_ROW_ATTACK : FURY_ROW_PATROL;
+                ctx.beginPath();
+                ctx.rect(-dw / 2, -dh / 2, dw, dh);
+                ctx.clip();
+                if (!isL) ctx.scale(-1, 1);
+                _drawFrame(ctx, fSheet, col, row, FURY_COLS, FURY_ROWS, dw, dh);
+            } else {
+                const frame = Math.floor((e * 10 + f.frameOffset) % 6) + 1;
+                let img = f.isAttacking
+                    ? (isL ? game.furyfishAttackLeft : game.furyfishAttackRight)[frame]
+                    : null;
+                if (!img || !img.complete || img.naturalWidth === 0)
+                    img = (isL ? game.furyfishSwimLeft : game.furyfishSwimRight)[frame];
+                if (img && img.complete && img.naturalWidth !== 0) {
+                    const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+                    ctx.drawImage(img, -w/2, -h/2, w, h);
+                }
+            }
             ctx.restore();
         }
-
-        ctx.restore(); // flip restore
-    };
-
-    // Color sets
-    const FURY_COLORS = {
-        body: '#2a3040', bodyLight: '#3d4a60', bodyDark: '#151820',
-        tail: '#1a2030', fin: '#202838', finLine: '#4a5878',
-        scale: '#3a4560', spine: '#4a5878',
-        hat: '#c0306a', hatBand: '#8a1845',
-        antenna: '#606878', mouth: '#3a1018', tongue: '#c03050',
-    };
-    const ENEMY_COLORS = {
-        body: '#2a3020', bodyLight: '#3d4830', bodyDark: '#141810',
-        tail: '#1a2015', fin: '#252c18', finLine: '#404c28',
-        scale: '#353f22', spine: '#404c28',
-        hat: '#c05830', hatBand: '#8a3010',
-        antenna: '#607058', mouth: '#381510', tongue: '#b02838',
-    };
-
-    for (const f of game.bgFuryfish) {
-        if (!isOnScreen(game, f.x, f.y, 160)) continue;
-        const s   = worldToScreen(game, f.x, f.y);
-        const sc  = FISH_SCALE.furyfish * (f.isAttacking ? 1.1 : 1.0);
-        const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
-        const isL = f.vx < 0;
-        ctx.save();
-        ctx.translate(s.x, s.y + bob);
-        if (f.isAttacking) {
-            ctx.shadowColor = `rgba(255,30,0,${0.45 + Math.sin(e * 8) * 0.25})`;
-            ctx.shadowBlur  = 18 + Math.sin(e * 8) * 7;
-        }
-        _drawFuryFish(ctx, e, sc, isL, f.isAttacking, f.bobOffset, f.frameOffset, FURY_COLORS);
-        ctx.restore();
     }
 
+    // ── Enemy fish — same sheet, slightly smaller ─────────────────
     for (const f of game.bgEnemies) {
         if (!isOnScreen(game, f.x, f.y, 150)) continue;
         const s   = worldToScreen(game, f.x, f.y);
-        const sc  = FISH_SCALE.enemy * (f.isAttacking ? 1.08 : 1.0);
-        const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
         const isL = f.vx < 0;
+        const sc  = FISH_SCALE.enemy * (f.isAttacking ? 1.06 : 1.0);
+        const bob = f.isAttacking ? 0 : Math.sin(e * 2 + f.bobOffset) * 6;
+        const { dw, dh } = _furyFrameSize(fSheet, sc * FURY_SHEET_SCALE);
+
         ctx.save();
         ctx.translate(s.x, s.y + bob);
-        if (f.isAttacking) { ctx.shadowColor = 'rgba(200,80,0,0.4)'; ctx.shadowBlur = 12; }
-        _drawFuryFish(ctx, e, sc, isL, f.isAttacking, f.bobOffset, f.frameOffset, ENEMY_COLORS);
+        if (f.isAttacking) { ctx.shadowColor = 'rgba(180,60,0,0.4)'; ctx.shadowBlur = 10; }
+
+        if (hasFSheet) {
+            const col = Math.floor((e * 8 + f.frameOffset) % FURY_COLS);
+            const row = f.isAttacking ? FURY_ROW_ATTACK : FURY_ROW_PATROL;
+            ctx.beginPath();
+            ctx.rect(-dw / 2, -dh / 2, dw, dh);
+            ctx.clip();
+            if (!isL) ctx.scale(-1, 1);
+            _drawFrame(ctx, fSheet, col, row, FURY_COLS, FURY_ROWS, dw, dh);
+        } else {
+            const frame = Math.floor((e * 10 + f.frameOffset) % 6) + 1;
+            const img = (isL ? game.furyfishSwimLeft : game.furyfishSwimRight)[frame];
+            if (img && img.complete && img.naturalWidth !== 0) {
+                const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+                ctx.drawImage(img, -w/2, -h/2, w, h);
+            }
+        }
         ctx.restore();
     }
 }
@@ -506,32 +369,23 @@ function drawBoss(game, ctx) {
     const BOSS_SHEET_SCALE = 2.6;
 
     if (hasBossImg) {
-        // Draw bigguy.jpg as boss — use 'screen' blend to drop black background
         const BOSS_IMG_SCALE = 0.55;
         const bdw = game.bossImg.naturalWidth  * BOSS_IMG_SCALE * sc;
         const bdh = game.bossImg.naturalHeight * BOSS_IMG_SCALE * sc;
         ctx.save();
-        // Flip to face direction of travel
         if (!b.facingLeft) ctx.scale(-1, 1);
         ctx.globalCompositeOperation = 'screen';
         ctx.drawImage(game.bossImg, -bdw / 2, -bdh / 2, bdw, bdh);
         ctx.restore();
     } else if (hasBSheet) {
         const { dw: bdw, dh: bdh } = _furyFrameSize(bSheet, sc * BOSS_SHEET_SCALE);
-        let bCol, bRow;
-        if (b.isCharging) {
-            bCol = Math.floor((e * 14 + b.frameOffset) % SCOLS);
-            bRow = FURY_ROWS - 1; // row 4 = open mouth + tail snap
-        } else {
-            bCol = Math.floor((e * 6 + b.frameOffset) % SCOLS);
-            bRow = Math.floor((e * 3 + b.frameOffset * 0.7) % (FURY_ROWS - 1));
-        }
+        const bCol = Math.floor((e * 8 + b.frameOffset) % FURY_COLS);
+        const bRow = b.isCharging ? FURY_ROW_ATTACK : FURY_ROW_PATROL;
         ctx.beginPath();
         ctx.rect(-bdw / 2, -bdh / 2, bdw, bdh);
         ctx.clip();
-        ctx.globalCompositeOperation = 'screen';
         if (!b.facingLeft) ctx.scale(-1, 1);
-        _drawFrame(ctx, bSheet, bCol, bRow, SCOLS, FURY_ROWS, bdw, bdh);
+        _drawFrame(ctx, bSheet, bCol, bRow, FURY_COLS, FURY_ROWS, bdw, bdh);
     } else {
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
     }
@@ -549,54 +403,23 @@ function drawBoss(game, ctx) {
 
 // ════════════════════════════════════════════════════════════════
 //  Sprite-sheet helpers
-//
-//  Fin  sheet  (fin_sprite.png)  — 4 cols × 4 rows, all face LEFT:
-//    row 0 = idle    (subtle tail sway, whisker)
-//    row 1 = swim    (tail fanned out)
-//    row 2 = attack  (mouth open wide)
-//    row 3 = shoot   (flashlight / bubble projectile)
-//
-//  Fury sheet  (fury_sprite.png) — 4 cols × 5 rows, all face LEFT:
-//    row 0 = idle
-//    row 1 = swim    (antennas up)
-//    row 2 = aggro   (body puffed)
-//    row 3 = attack  (mouth wide open)
-//    row 4 = charge  (alt / lunge)
-//
-//  All rows face LEFT naturally.
-//  To draw facing RIGHT: ctx.scale(-1,1) around the draw call.
 // ════════════════════════════════════════════════════════════════
 
-const SCOLS      = 4;   // columns in every sheet
+const SCOLS      = 4;   // Fin sheet columns
 const FIN_ROWS   = 4;
-const FURY_ROWS  = 5;   // preview.png is 4 cols × 5 rows (250x200px per frame)
 
-// Row indices — Fin
+// ── furyfish.png: 3 cols × 2 rows ────────────────────────────
+const FURY_COLS       = 3;
+const FURY_ROWS       = 2;
+const FURY_ROW_PATROL = 0;
+const FURY_ROW_ATTACK = 1;
+
+// Fin sheet row indices
 const FIN_ROW_IDLE   = 0;
 const FIN_ROW_SWIM   = 1;
 const FIN_ROW_ATTACK = 2;
 const FIN_ROW_SHOOT  = 3;
 
-// Row indices — Fury
-const FURY_ROW_IDLE   = 0;
-const FURY_ROW_SWIM   = 1;
-const FURY_ROW_AGGRO  = 2;
-const FURY_ROW_ATTACK = 3;
-const FURY_ROW_CHARGE = 4;  // row 4 = full wide-open chomp (lunge/charge)
-
-/**
- * Draw one frame from a uniform sprite sheet.
- * The sheet is divided into COLS × ROWS equal cells.
- * ctx must already be translated to the draw-centre before calling.
- *
- * @param ctx        CanvasRenderingContext2D
- * @param sheet      HTMLImageElement  (full sprite sheet)
- * @param col        0-based column
- * @param row        0-based row
- * @param cols       total columns in sheet
- * @param rows       total rows in sheet
- * @param dw, dh     destination draw size (px)
- */
 function _drawFrame(ctx, sheet, col, row, cols, rows, dw, dh) {
     if (!sheet || !sheet.complete || sheet.naturalWidth === 0) return false;
     const fw = sheet.naturalWidth  / cols;
@@ -607,7 +430,6 @@ function _drawFrame(ctx, sheet, col, row, cols, rows, dw, dh) {
     return true;
 }
 
-// Frame size helpers — returns {dw, dh} for display given a uniform scale factor
 function _finFrameSize(sheet, scale) {
     if (!sheet || !sheet.complete || sheet.naturalWidth === 0)
         return { dw: 80 * scale, dh: 80 * scale };
@@ -620,7 +442,7 @@ function _furyFrameSize(sheet, scale) {
     if (!sheet || !sheet.complete || sheet.naturalWidth === 0)
         return { dw: 100 * scale, dh: 100 * scale };
     return {
-        dw: (sheet.naturalWidth  / SCOLS) * scale,
+        dw: (sheet.naturalWidth  / FURY_COLS) * scale,
         dh: (sheet.naturalHeight / FURY_ROWS) * scale,
     };
 }
@@ -638,7 +460,6 @@ function drawPlayerFish(game, ctx) {
     const sheet     = game.finSheet;
     const hasSheet  = sheet && sheet.complete && sheet.naturalWidth > 0;
 
-    // One-time console log so you can verify the sheet loaded (remove after confirming)
     if (!game._sheetDebugLogged) {
         game._sheetDebugLogged = true;
         console.log('[Fin sheet]  src:', sheet ? sheet.src : 'null',
@@ -650,11 +471,10 @@ function drawPlayerFish(game, ctx) {
                     '| size:', fs ? fs.naturalWidth + 'x' + fs.naturalHeight : '0x0');
     }
 
-    // Display scale — tune PLAYER_SHEET_SCALE to size Fin on screen
     const PLAYER_SHEET_SCALE = 0.4;
     const { dw, dh } = _finFrameSize(sheet, game.playerSize * PLAYER_SHEET_SCALE);
 
-    // ── Respawn fall — Fin drops in from top ─────────────────
+    // ── Respawn fall ──────────────────────────────────────────
     if (game.isRespawning) {
         const t      = Math.min(game.respawnTimer / RESPAWN_FALL_DURATION, 1.0);
         const scaleY = t > 0.85 ? 1 - (t - 0.85) / 0.15 * 0.18 : 1;
@@ -665,7 +485,6 @@ function drawPlayerFish(game, ctx) {
         ctx.translate(s.x, s.y);
         ctx.scale(1, scaleY);
 
-        // Splash ripple on landing
         if (t > 0.85) {
             const sp = (t - 0.85) / 0.15;
             ctx.save();
@@ -678,11 +497,9 @@ function drawPlayerFish(game, ctx) {
         }
 
         if (hasSheet) {
-            // Facing right during fall — flip (sheet faces left)
             ctx.scale(-1, 1);
             _drawFrame(ctx, sheet, col, FIN_ROW_SWIM, SCOLS, FIN_ROWS, dw, dh);
         } else {
-            // Fallback old sprite
             const fi = (game.mainfishSwimRight[Math.floor((e*10)%6)+1] ||
                         game.mainfishRestRight[Math.floor((e*10)%6)+1]);
             if (fi && fi.complete && fi.naturalWidth)
@@ -694,40 +511,32 @@ function drawPlayerFish(game, ctx) {
 
     // ── Normal / attacking ────────────────────────────────────
     let row, col;
-    // Bite flash when Fin eats a fish — game.lastEatTime set in collisions.js
     const EAT_BITE_DURATION = 0.50;
-    // lastEatTime is -100 until first eat, then set to game.elapsed by collisions.js
-    // Safe check: only bite if lastEatTime is recent (within last 2 seconds of elapsed)
     const timeSinceEat = (game.lastEatTime > -50) ? (e - game.lastEatTime) : 999;
     const biting = timeSinceEat >= 0 && timeSinceEat < EAT_BITE_DURATION;
 
     if (biting) {
-        // ── Eat bite — HIGHEST priority (row 2: col1=half open, col2=WIDE OPEN) ──
         const prog = Math.min(0.99, timeSinceEat / EAT_BITE_DURATION);
-        if      (prog < 0.25) col = 1;   // opening
-        else if (prog < 0.75) col = 2;   // WIDE OPEN — holds longest (your row2,col2)
-        else                  col = 1;   // closing back
-        row = FIN_ROW_ATTACK;            // row index 2
+        if      (prog < 0.25) col = 1;
+        else if (prog < 0.75) col = 2;
+        else                  col = 1;
+        row = FIN_ROW_ATTACK;
     } else if (attacking && game.hasPearlPower) {
-        // Shoot animation — same frames as bite (row 2, col 1=half open, col 2=wide open)
         const prog = Math.min(0.99, timeSince / game.attackDuration);
         if      (prog < 0.25) col = 1;
         else if (prog < 0.75) col = 2;
         else                  col = 1;
         row = FIN_ROW_ATTACK;
     } else if (attacking && !game.hasPearlPower) {
-        // Attack without pearl — also show bite face
         const prog = Math.min(0.99, timeSince / game.attackDuration);
         if      (prog < 0.25) col = 1;
         else if (prog < 0.75) col = 2;
         else                  col = 1;
         row = FIN_ROW_ATTACK;
     } else if (game.fishMoving) {
-        // Row 1: cols 0 and 1 are the clean swim frames (no wide tail extension)
-        col = Math.floor((e * 6) % 2);  // alternate between col 0 and col 1
+        col = Math.floor((e * 6) % 2);
         row = FIN_ROW_SWIM;
     } else {
-        // Idle: col 0, row 1 — cleanest frame, no whiskers, no tail extension
         col = 0;
         row = FIN_ROW_SWIM;
     }
@@ -742,14 +551,11 @@ function drawPlayerFish(game, ctx) {
     ctx.translate(s.x, s.y + bob);
 
     if (hasSheet) {
-        // Sheet faces LEFT naturally.
-        // fishFacingLeft=true → no flip.  fishFacingLeft=false → flip.
         if (!game.fishFacingLeft) ctx.scale(-1, 1);
         _drawFrame(ctx, sheet, col, row, SCOLS, FIN_ROWS, dw, dh);
     } else {
-        // Fallback to old per-frame sprites
         let imgSet;
-        if (attacking)           imgSet = game.fishFacingLeft ? game.mainfishAttackLeft : game.mainfishAttackRight;
+        if (attacking)            imgSet = game.fishFacingLeft ? game.mainfishAttackLeft : game.mainfishAttackRight;
         else if (game.fishMoving) imgSet = game.fishFacingLeft ? game.mainfishSwimLeft   : game.mainfishSwimRight;
         else                      imgSet = game.fishFacingLeft ? game.mainfishRestLeft    : game.mainfishRestRight;
         const frame = Math.floor((e * 10) % 6) + 1;
@@ -776,17 +582,14 @@ function drawCollectibles(game, ctx) {
             : (game.clamOpenSprite  && game.clamOpenSprite.complete  && game.clamOpenSprite.naturalWidth  ? game.clamOpenSprite  : game.clamSprite.open);
         if (!img || !img.complete || img.naturalWidth === 0) continue;
 
-        // Small clam — scale 0.28
         const sc = 0.28;
         const w  = img.naturalWidth  * sc;
         const h  = img.naturalHeight * sc;
 
         if (clam.hasPearl && !clam.pearlCollected) {
-            // Gentle bob & sway while waiting
             const clamBob  = Math.sin(e * 1.4 + clam.x * 0.005) * 2.5;
             const clamSway = Math.sin(e * 1.1 + clam.x * 0.008) * 0.04;
             const iy = s.y - h / 2 + clamBob;
-            // Draw closed clam (pearl.png) with cyan glow — pearl is inside the image
             ctx.save();
             ctx.shadowColor = `rgba(0,200,255,${0.4 + Math.sin(e * 3) * 0.2})`;
             ctx.shadowBlur  = 22 + Math.sin(e * 3) * 8;
@@ -794,7 +597,6 @@ function drawCollectibles(game, ctx) {
             ctx.rotate(clamSway);
             ctx.drawImage(img, -w / 2, -h, w, h);
             ctx.restore();
-            // "COLLECT TO SHOOT!" hint
             ctx.save();
             ctx.font = "bold 13px 'Exo 2', sans-serif"; ctx.textAlign = 'center';
             ctx.fillStyle   = '#00c8ff';
@@ -802,13 +604,9 @@ function drawCollectibles(game, ctx) {
             ctx.fillText('COLLECT TO SHOOT!', s.x, iy - 8 + Math.sin(e * 2) * 4);
             ctx.restore();
         } else {
-            // Draw open clam (pearl1_2.png) — pearl is visually gone (collected)
-            const ix2 = s.x - w / 2;
-            const iy2 = s.y - h / 2;
-            ctx.drawImage(img, ix2, iy2, w, h);
+            ctx.drawImage(img, s.x - w / 2, s.y - h / 2, w, h);
         }
 
-        // Collection pulse ring — no floating pearl sprite
         if (clam.openAnim > 0) {
             ctx.save();
             ctx.globalAlpha = clam.openAnim * 0.7;
@@ -838,8 +636,6 @@ function drawProjectiles(game, ctx) {
         const ox = img.naturalWidth / 2, oy = img.naturalHeight / 2;
         ctx.save();
         ctx.translate(s.x, s.y);
-        // Projectile sprite fires LEFT by default.
-        // When going right (vx > 0) → flip so bubble leads rightward.
         if (p.vx > 0) ctx.scale(-1, 1);
         ctx.drawImage(img, -ox, -oy);
         ctx.restore();
@@ -889,7 +685,6 @@ function drawHUD(game, ctx, W, H) {
     hudText(`BEST: ${game.highScore}`,                       40, 66,  '#ffaa40', '#ffaa40', 18);
     hudText(`STAGE ${game.stage} / ${game.MAX_STAGE}`,       40, 90,  '#ffffff', '#ffffff', 18);
 
-    // ── 4-tier size rank indicator ─────────────────────────────
     const rank    = playerSizeRank(game.playerSize);
     const rankTxt = rank === 3 ? '🐋 LARGE — eat everything!'
                   : rank === 2 ? `🐟 MEDIUM — grow to 1.25 for tuna  (${game.playerSize.toFixed(2)})`
@@ -902,10 +697,6 @@ function drawHUD(game, ctx, W, H) {
     ctx.strokeText(rankTxt, 40, 113); ctx.fillStyle = rankCol; ctx.fillText(rankTxt, 40, 113);
     ctx.restore();
 
-    // ── Attempt bubbles ────────────────────────────────────────
-    // Normal: bright cyan-blue bubble
-    // Last attempt (attempts === 1): the single remaining bubble pulses red/orange
-    // Used: hollow dark circle
     const bubbleY   = 138;
     const bubbleR   = 10;
     const bubbleGap = 26;
@@ -917,12 +708,10 @@ function drawHUD(game, ctx, W, H) {
         ctx.beginPath();
         ctx.arc(bx, bubbleY, bubbleR, 0, Math.PI * 2);
         if (used) {
-            // Empty — used attempt
             ctx.fillStyle   = 'rgba(0,0,0,0.35)';
             ctx.strokeStyle = 'rgba(90,90,120,0.45)';
             ctx.shadowBlur  = 0;
         } else if (lastAttempt) {
-            // Last remaining attempt — red/orange warning pulse
             const pulse = 0.5 + Math.sin(game.elapsed * 6) * 0.5;
             const grd   = ctx.createRadialGradient(bx-3, bubbleY-3, 1, bx, bubbleY, bubbleR);
             grd.addColorStop(0, '#ffdd80');
@@ -933,7 +722,6 @@ function drawHUD(game, ctx, W, H) {
             ctx.shadowBlur  = 10 + pulse * 8;
             ctx.strokeStyle = 'rgba(255,180,80,0.9)';
         } else {
-            // Normal active attempt — cyan-blue
             const grd = ctx.createRadialGradient(bx-3, bubbleY-3, 1, bx, bubbleY, bubbleR);
             grd.addColorStop(0, '#80ffdd');
             grd.addColorStop(0.6, '#00c8ff');
@@ -953,7 +741,6 @@ function drawHUD(game, ctx, W, H) {
     ctx.fillText(lastAttempt ? 'LAST ATTEMPT!' : 'ATTEMPTS', 42, bubbleY + bubbleR + 12);
     ctx.restore();
 
-    // ── Pearl status ──────────────────────────────────────────
     const pearlCol = game.hasPearlPower ? '#00c8ff' : '#888';
     const pearlTxt = game.hasPearlPower ? '🦪 PEARL READY (CLICK / SPACE)' : '🦪 Find a clam to shoot!';
     ctx.save();
@@ -963,7 +750,6 @@ function drawHUD(game, ctx, W, H) {
     ctx.strokeText(pearlTxt, 40, 168); ctx.fillStyle = pearlCol; ctx.fillText(pearlTxt, 40, 168);
     ctx.restore();
 
-    // ── Fish remaining ─────────────────────────────────────────
     const rem    = countEdible(game);
     const remTxt = rem > 0
         ? `🐟 EAT ${rem} MORE FISH`
@@ -975,7 +761,6 @@ function drawHUD(game, ctx, W, H) {
     ctx.strokeText(remTxt, 40, 190); ctx.fillStyle = remCol; ctx.fillText(remTxt, 40, 190);
     ctx.restore();
 
-    // ── Boss HP bar ────────────────────────────────────────────
     if (game.boss && !game.bossDefeated) {
         const barW = 320, barH = 22;
         const barX = (W - barW) / 2, barY = 24;
@@ -995,12 +780,11 @@ function drawHUD(game, ctx, W, H) {
         ctx.restore();
     }
 
-    // ── Minimap ────────────────────────────────────────────────
     drawMinimap(game, ctx, W, H);
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Minimap  —  edible fish only, NO poison fish, NO pearls
+//  Minimap
 // ────────────────────────────────────────────────────────────────
 
 function drawMinimap(game, ctx, W, H) {
@@ -1049,7 +833,6 @@ function drawMinimap(game, ctx, W, H) {
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill();
     };
 
-    // Edible fish only — no poison, no pearls
     for (const f of (game.bgTinyfish||[]))    dot(f.x, f.y, mm.DOT_TINY,   1.5);
     for (const f of game.bgClownfish)          dot(f.x, f.y, mm.DOT_SMALL,  2.0);
     for (const f of game.bgGoldfish)           dot(f.x, f.y, mm.DOT_SMALL,  2.0);
@@ -1057,7 +840,6 @@ function drawMinimap(game, ctx, W, H) {
     for (const f of game.bgTertiaryfish)       dot(f.x, f.y, mm.DOT_MEDIUM, 2.6);
     for (const f of game.bgTunafish)           dot(f.x, f.y, mm.DOT_LARGE,  3.2);
 
-    // Player — pulsing green
     const pp = toMap(game.fishX, game.fishY);
     const pPulse = 3.0 + Math.sin(game.elapsed * 6) * 0.8;
     ctx.save();
@@ -1127,25 +909,17 @@ function drawStageIntro(game, ctx, W, H) {
     ctx.restore();
 }
 
-// ────────────────────────────────────────────────────────────────
-//  Eaten screen  —  countdown only (no EATEN! text — shown during anim)
-//  Shows after the being-eaten animation completes.
-//  Displays: dark overlay + attempt bubbles + 3-2-1 countdown
-// ────────────────────────────────────────────────────────────────
-
 function drawEatenScreen(game) {
     const { ctx, canvas, dpr } = game;
     const W = canvas.width / dpr, H = canvas.height / dpr;
     ctx.save(); ctx.scale(dpr, dpr);
 
-    // Dark ocean overlay
     ctx.fillStyle = 'rgba(0,8,22,0.82)'; ctx.fillRect(0, 0, W, H);
     const vg = ctx.createRadialGradient(W/2, H/2, H*0.1, W/2, H/2, H*0.78);
     vg.addColorStop(0, 'rgba(0,20,50,0)');
     vg.addColorStop(1, 'rgba(0,10,30,0.55)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 
-    // ── Attempt bubbles ───────────────────────────────────────
     const bubR   = 14;
     const bubGap = 36;
     const startX = W/2 - (MAX_ATTEMPTS * bubGap) / 2 + bubR;
@@ -1189,7 +963,6 @@ function drawEatenScreen(game) {
         ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
     }
 
-    // ── Countdown number ──────────────────────────────────────
     const secsLeft = Math.ceil(Math.max(0, game.eatenTimer));
     if (secsLeft > 0) {
         const pulse = 1 + Math.sin(game.elapsed * 8) * 0.06;
@@ -1212,21 +985,14 @@ function drawEatenScreen(game) {
     ctx.restore();
 }
 
-
-// ────────────────────────────────────────────────────────────────
-//  Game Over screen
-// ────────────────────────────────────────────────────────────────
-
 function drawGameOver(game) {
     const { ctx, canvas, dpr } = game;
     const W = canvas.width / dpr, H = canvas.height / dpr;
     ctx.save(); ctx.scale(dpr, dpr);
 
-    // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.78)';
     ctx.fillRect(0, 0, W, H);
 
-    // Image zone: top 12% to 50% of screen height
     const imgAreaTop = H * 0.12;
     const imgAreaH   = H * 0.38;
 
@@ -1253,7 +1019,6 @@ function drawGameOver(game) {
         ctx.restore();
     }
 
-    // Score area below image zone
     const scoreY = imgAreaTop + imgAreaH + 18;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -1267,7 +1032,6 @@ function drawGameOver(game) {
     ctx.fillStyle = game.score >= game.highScore ? '#ffd060' : '#aaaaaa';
     ctx.fillText('Best: ' + game.highScore, W / 2, scoreY + 32);
 
-    // Try Again button
     const bW = 240, bH = 55, bX = (W - bW) / 2, bY = scoreY + 70;
     game.tryAgainButtonRect = { x: bX, y: bY, w: bW, h: bH };
     const gd = ctx.createLinearGradient(bX, bY, bX, bY + bH);
@@ -1283,10 +1047,6 @@ function drawGameOver(game) {
     ctx.fillText('TRY AGAIN', W / 2, bY + bH / 2 + 2);
     ctx.restore();
 }
-
-// ────────────────────────────────────────────────────────────────
-//  Stage Clear screen
-// ────────────────────────────────────────────────────────────────
 
 function drawStageClearScreen(game) {
     const { ctx, canvas, dpr } = game;
