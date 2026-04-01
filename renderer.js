@@ -95,31 +95,34 @@ function drawMantaRay(game, ctx) {
     const img = game.mantaRayImg;
     if (!img || !img.complete || img.naturalWidth === 0) return;
 
-    // Sheet: 4 cols × 2 rows = 8 frames, sprite faces LEFT naturally
+    // Sheet: 4 cols × 2 rows — always use row 0, always moving left (no flip)
     const frameW = img.naturalWidth  / m.COLS;
     const frameH = img.naturalHeight / m.ROWS;
-    const scale  = 5; // adjust to taste
+    const scale  = 5;
     const drawW  = frameW * scale;
     const drawH  = frameH * scale;
 
     const s   = worldToScreen(game, m.x, m.y);
-    const bob = Math.sin(game.elapsed * 0.8 + m.bobOffset) * 10;
+    const bob = Math.sin(game.elapsed * 0.6 + m.bobOffset) * 8;
     const sx  = m.frameCol * frameW;
-    const sy  = m.frameRow * frameH;
+    const sy  = 0; // always row 0
+
+    // ── Shadow silhouette — same technique as fishshadow ──────────
+    // Draw frame onto offscreen canvas, paint it solid black (source-in),
+    // then blit back at low alpha for a deep-water shadow look.
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = Math.ceil(drawW);
+    offscreen.height = Math.ceil(drawH);
+    const offCtx = offscreen.getContext('2d');
+
+    offCtx.drawImage(img, sx, sy, frameW, frameH, 0, 0, drawW, drawH);
+    offCtx.globalCompositeOperation = 'source-in';
+    offCtx.fillStyle = '#000000';
+    offCtx.fillRect(0, 0, drawW, drawH);
 
     ctx.save();
-    ctx.globalAlpha = 0.88; // slightly translucent — feels like background depth
-
-    if (m.vx < 0) {
-        // Swimming left — sprite naturally faces left, draw normally
-        ctx.drawImage(img, sx, sy, frameW, frameH, s.x - drawW / 2, s.y - drawH / 2 + bob, drawW, drawH);
-    } else {
-        // Swimming right — flip horizontally
-        ctx.translate(s.x, s.y + bob);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH / 2, drawW, drawH);
-    }
-
+    ctx.globalAlpha = 0.20 + Math.sin(game.elapsed * 0.35 + m.bobOffset) * 0.06;
+    ctx.drawImage(offscreen, s.x - drawW / 2, s.y - drawH / 2 + bob);
     ctx.restore();
 }
 
@@ -165,10 +168,15 @@ function drawDecorations(game, ctx) {
                      + Math.sin(e * 1.85 + d.x * 0.018) * 0.045;
                 break;
             case 'fishshadow':
-                img   = game.decoFishShadow;
-                alpha = 0.22 + Math.sin(e * 0.4) * 0.06;
-                bob   = Math.sin(e * 0.3) * 8;
-                break;
+    img   = game.decoFishShadow;
+    alpha = 0.22 + Math.sin(e * 0.4) * 0.06;
+    bob   = Math.sin(e * 0.3) * 8;
+    // Move it
+    d.x  += (d.vx || 30) * (game._lastDt || 0.016);
+    // Wrap at world edges
+    if (d.x > game.world.w + 200) d.x = -200;
+    if (d.x < -200)               d.x = game.world.w + 200;
+    break;
         }
 
         if (!img || !img.complete || img.naturalWidth === 0) continue;
@@ -187,8 +195,15 @@ function drawDecorations(game, ctx) {
             ctx.rotate(sway);
             ctx.drawImage(img, -w / 2, -h, w, h);
         } else {
-            ctx.drawImage(img, s.x - w / 2, s.y - h / 2 + bob, w, h);
-        }
+    if (d.type === 'fishshadow' && d.vx > 0) {
+        // Flip horizontally for rightward travel
+        ctx.translate(s.x, s.y - h / 2 + bob);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, -w / 2, 0, w, h);
+    } else {
+        ctx.drawImage(img, s.x - w / 2, s.y - h / 2 + bob, w, h);
+    }
+}
         ctx.restore();
     }
 }
@@ -1300,7 +1315,7 @@ function _drawSettingsBtn(game, ctx, W, H) {
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Pause screen overlay
+//  Pause screen overlay — plain text menu
 // ────────────────────────────────────────────────────────────────
 
 function drawPauseScreen(game) {
@@ -1308,59 +1323,75 @@ function drawPauseScreen(game) {
     const W = canvas.width / dpr, H = canvas.height / dpr;
     ctx.save(); ctx.scale(dpr, dpr);
 
-    // Dim backdrop
-    ctx.fillStyle = 'rgba(0,8,24,0.72)';
+    // Dim backdrop + soft vignette
+    ctx.fillStyle = 'rgba(0,6,20,0.76)';
     ctx.fillRect(0, 0, W, H);
-
-    // Vignette
-    const vg = ctx.createRadialGradient(W/2, H/2, H*0.12, W/2, H/2, H*0.72);
-    vg.addColorStop(0, 'rgba(0,20,50,0)');
-    vg.addColorStop(1, 'rgba(0,10,30,0.50)');
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.08, W/2, H/2, H*0.70);
+    vg.addColorStop(0, 'rgba(0,20,55,0)');
+    vg.addColorStop(1, 'rgba(0,8,28,0.55)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 
-    // Panel
-    const pW = Math.min(360, W * 0.88), pH = 220;
-    const pX = (W - pW) / 2, pY = (H - pH) / 2;
-    ctx.fillStyle   = 'rgba(0,20,50,0.90)';
-    ctx.strokeStyle = 'rgba(0,200,255,0.60)';
-    ctx.lineWidth   = 2;
-    _rrect(ctx, pX, pY, pW, pH, 18); ctx.fill();
-    _rrect(ctx, pX, pY, pW, pH, 18); ctx.stroke();
-
-    // Title
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font         = "bold 58px 'Bangers', cursive";
-    ctx.shadowColor  = '#00c8ff'; ctx.shadowBlur = 20;
-    ctx.fillStyle    = '#ffffff';
-    ctx.fillText('⏸ PAUSED', W / 2, pY + 68);
-    ctx.shadowBlur   = 0;
 
-    ctx.font      = "16px 'Exo 2', sans-serif";
-    ctx.fillStyle = 'rgba(140,200,255,0.65)';
-    ctx.fillText('Press ESC or click Resume to continue', W / 2, pY + 108);
+    // ── Title ─────────────────────────────────────────────
+    ctx.font        = "bold 72px 'Bangers', cursive";
+    ctx.shadowColor = '#00c8ff'; ctx.shadowBlur = 28;
+    ctx.fillStyle   = '#ffffff';
+    ctx.fillText('PAUSED', W / 2, H / 2 - 100);
+    ctx.shadowBlur  = 0;
 
-    // Resume button
-    const bW = 200, bH = 50, bX = (W - bW) / 2, bY = pY + pH - 72;
-    game.resumeBtnRect = { x: bX, y: bY, w: bW, h: bH };
-    const gd = ctx.createLinearGradient(bX, bY, bX, bY + bH);
-    gd.addColorStop(0, '#00c8ff'); gd.addColorStop(1, '#0055cc');
-    ctx.fillStyle   = gd;
-    _rrect(ctx, bX, bY, bW, bH, 10); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,220,255,0.80)'; ctx.lineWidth = 2;
-    _rrect(ctx, bX, bY, bW, bH, 10); ctx.stroke();
+    // ── Menu items — plain text, vertical stack ───────────
+    const items = [
+        { label: '▶  Resume',   key: 'resume'   },
+        { label: '⚙  Settings', key: 'settings' },
+        { label: '⌂  Home',     key: 'home'     },
+    ];
+    const lineH  = 54;
+    const startY = H / 2 - 18;
+    const hitW   = 240;
 
-    ctx.fillStyle    = '#fff';
-    ctx.font         = "bold 26px 'Bangers', cursive";
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('▶ RESUME', W / 2, bY + bH / 2 + 2);
+    game._pauseMenuItems = [];
+
+    items.forEach((item, i) => {
+        const cy      = startY + i * lineH;
+        const isHover = game._pauseHover === item.key;
+
+        const col = item.key === 'resume'   ? (isHover ? '#ffffff'   : 'rgba(255,255,255,0.90)')
+                  : item.key === 'settings' ? (isHover ? '#80e8ff'   : 'rgba(120,210,255,0.68)')
+                  :                           (isHover ? '#ff9966'   : 'rgba(255,160,110,0.60)');
+
+        if (isHover) {
+            ctx.shadowColor = item.key === 'home' ? '#ff6633' : '#00c8ff';
+            ctx.shadowBlur  = 16;
+        }
+
+        ctx.font      = item.key === 'resume'
+            ? "bold 38px 'Bangers', cursive"
+            : "bold 30px 'Bangers', cursive";
+        ctx.fillStyle = col;
+        ctx.fillText(item.label, W / 2, cy);
+        ctx.shadowBlur = 0;
+
+        game._pauseMenuItems.push({
+            key: item.key,
+            x: W / 2 - hitW / 2,
+            y: cy - lineH / 2,
+            w: hitW,
+            h: lineH,
+        });
+    });
+
+    // ── ESC hint ──────────────────────────────────────────
+    ctx.font      = "13px 'Exo 2', sans-serif";
+    ctx.fillStyle = 'rgba(100,160,220,0.36)';
+    ctx.fillText('ESC to resume', W / 2, startY + items.length * lineH + 8);
 
     ctx.restore();
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Settings panel overlay
+//  Settings panel overlay — styled to match reference screenshot
 // ────────────────────────────────────────────────────────────────
 
 function drawSettingsPanel(game) {
@@ -1368,118 +1399,192 @@ function drawSettingsPanel(game) {
     const W = canvas.width / dpr, H = canvas.height / dpr;
     ctx.save(); ctx.scale(dpr, dpr);
 
-    // Dim backdrop
-    ctx.fillStyle = 'rgba(0,8,24,0.78)';
+    // ── Dim backdrop ──────────────────────────────────────
+    ctx.fillStyle = 'rgba(0,6,24,0.82)';
     ctx.fillRect(0, 0, W, H);
 
-    // Panel
-    const pW = Math.min(400, W * 0.92), pH = 310;
-    const pX = (W - pW) / 2, pY = (H - pH) / 2;
-    ctx.fillStyle   = 'rgba(0,18,46,0.95)';
-    ctx.strokeStyle = 'rgba(0,200,255,0.60)';
-    ctx.lineWidth   = 2;
-    _rrect(ctx, pX, pY, pW, pH, 18); ctx.fill();
-    _rrect(ctx, pX, pY, pW, pH, 18); ctx.stroke();
+    // ── Panel dimensions ──────────────────────────────────
+    const pW = Math.min(520, W * 0.90);
+    const pH = 360;
+    const pX = (W - pW) / 2;
+    const pY = (H - pH) / 2;
+    const pad = 28;
 
-    // Title
+    // Panel background — dark navy with border glow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,180,255,0.35)';
+    ctx.shadowBlur  = 28;
+    ctx.fillStyle   = 'rgba(8,22,55,0.97)';
+    _rrect(ctx, pX, pY, pW, pH, 16); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,180,255,0.55)';
+    ctx.lineWidth   = 2;
+    _rrect(ctx, pX, pY, pW, pH, 16); ctx.stroke();
+
+    // ── Title ─────────────────────────────────────────────
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font         = "bold 42px 'Bangers', cursive";
-    ctx.shadowColor  = '#00c8ff'; ctx.shadowBlur = 14;
-    ctx.fillStyle    = '#ffffff';
-    ctx.fillText('⚙ SETTINGS', W / 2, pY + 46);
+    ctx.font         = "bold 46px 'Bangers', cursive";
+    ctx.shadowColor  = '#f4a800'; ctx.shadowBlur = 18;
+    ctx.fillStyle    = '#f4c020';
+    ctx.fillText('SETTINGS', W / 2, pY + 44);
     ctx.shadowBlur   = 0;
 
-    // ── Close (✕) button ─────────────────────────────────
-    const closeSize = 30;
-    const closeX    = pX + pW - closeSize - 10;
-    const closeY    = pY + 10;
-    game.closeBtnRect = { x: closeX, y: closeY, w: closeSize, h: closeSize };
-    ctx.fillStyle   = 'rgba(255,80,80,0.20)';
-    ctx.strokeStyle = 'rgba(255,100,100,0.55)';
+    // ── Row layout helpers ────────────────────────────────
+    const labelX  = pX + pad;
+    const rowH    = 46;
+    const row1Y   = pY + 94;   // Music Volume
+    const row2Y   = row1Y + rowH + 10;  // SFX Volume
+    const row3Y   = row2Y + rowH + 10;  // Control Mode
+    const row4Y   = row3Y + rowH + 10;  // Fullscreen
+
+    const sliderX  = labelX + 148;
+    const sliderW  = pW - pad - 148 - 58;  // leaves room for % label
+    const sliderH  = 8;
+    const thumbR   = 9;
+
+    // ── Helper: labelled slider row ───────────────────────
+    const drawSlider = (label, pctKey, rowY) => {
+        const pct = game._settings[pctKey];
+
+        // Label
+        ctx.textAlign    = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font         = "bold 15px 'Exo 2', sans-serif";
+        ctx.fillStyle    = '#d0e8ff';
+        ctx.fillText(label, labelX, rowY + sliderH / 2);
+
+        // Track background
+        const tY = rowY;
+        ctx.fillStyle = 'rgba(10,30,70,0.80)';
+        _rrect(ctx, sliderX, tY, sliderW, sliderH, 4); ctx.fill();
+
+        // Track fill (cyan)
+        const fillW = Math.max(0, sliderW * pct);
+        const grad  = ctx.createLinearGradient(sliderX, 0, sliderX + sliderW, 0);
+        grad.addColorStop(0, '#00c8ff'); grad.addColorStop(1, '#0080dd');
+        ctx.fillStyle = grad;
+        _rrect(ctx, sliderX, tY, fillW, sliderH, 4); ctx.fill();
+
+        // Thumb
+        const tx = sliderX + fillW;
+        ctx.save();
+        ctx.shadowColor = '#00d4ff'; ctx.shadowBlur = 10;
+        ctx.fillStyle   = '#00d4ff';
+        ctx.beginPath(); ctx.arc(tx, tY + sliderH / 2, thumbR, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // % label
+        ctx.textAlign    = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font         = "bold 14px 'Exo 2', sans-serif";
+        ctx.fillStyle    = '#d0e8ff';
+        ctx.fillText(`${Math.round(pct * 100)}%`, sliderX + sliderW + 12, tY + sliderH / 2);
+
+        // Return hit info for input.js
+        return { x: sliderX, y: tY - thumbR * 2, w: sliderW, h: sliderH + thumbR * 4, key: pctKey };
+    };
+
+    const s1 = drawSlider('Music Volume', 'musicVol', row1Y);
+    const s2 = drawSlider('SFX Volume',   'sfxVol',   row2Y);
+
+    // ── Control Mode — pill toggle ────────────────────────
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "bold 15px 'Exo 2', sans-serif";
+    ctx.fillStyle    = '#d0e8ff';
+    ctx.fillText('Control Mode', labelX, row3Y + sliderH / 2);
+
+    const modeOpts    = ['Keyboard', 'Mouse Cursor'];
+    const modeValues  = ['keyboard', 'mouse'];
+    const currentMode = game._settings.controlMode;
+    const dropW       = sliderW + 58;
+    const dropH       = 34;
+    const dropX       = sliderX;
+    const dropY       = row3Y - dropH / 2 + sliderH / 2;
+
+    // Draw dropdown-style box
+    ctx.fillStyle   = 'rgba(10,30,72,0.92)';
+    ctx.strokeStyle = 'rgba(0,160,255,0.50)';
     ctx.lineWidth   = 1.5;
-    _rrect(ctx, closeX, closeY, closeSize, closeSize, 6); ctx.fill();
-    _rrect(ctx, closeX, closeY, closeSize, closeSize, 6); ctx.stroke();
-    ctx.font         = "bold 18px 'Exo 2', sans-serif";
-    ctx.fillStyle    = 'rgba(255,160,160,0.95)';
+    _rrect(ctx, dropX, dropY, dropW, dropH, 6); ctx.fill();
+    _rrect(ctx, dropX, dropY, dropW, dropH, 6); ctx.stroke();
+
+    // Active label
+    const activeLabel = modeOpts[modeValues.indexOf(currentMode)] ?? 'Keyboard';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "15px 'Exo 2', sans-serif";
+    ctx.fillStyle    = '#ffffff';
+    ctx.fillText(activeLabel, dropX + 12, dropY + dropH / 2);
+
+    // Chevron ▾
+    ctx.textAlign    = 'right';
+    ctx.fillStyle    = 'rgba(140,200,255,0.70)';
+    ctx.fillText('▾', dropX + dropW - 10, dropY + dropH / 2);
+
+    // Toggle on click: cycle through options
+    const modeHitRect = { x: dropX, y: dropY, w: dropW, h: dropH, key: 'controlMode',
+                          values: modeValues, labels: modeOpts };
+
+    // ── Fullscreen toggle ─────────────────────────────────
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "bold 15px 'Exo 2', sans-serif";
+    ctx.fillStyle    = '#d0e8ff';
+    ctx.fillText('Fullscreen', labelX, row4Y + sliderH / 2);
+
+    const fsOn    = game._settings.fullscreen;
+    const togW    = 68, togH = 30;
+    const togX    = sliderX;
+    const togY    = row4Y - togH / 2 + sliderH / 2;
+    const togFill = fsOn ? '#00a8ff' : 'rgba(10,30,70,0.80)';
+    ctx.fillStyle   = togFill;
+    ctx.strokeStyle = fsOn ? 'rgba(0,200,255,0.80)' : 'rgba(0,120,200,0.40)';
+    ctx.lineWidth   = 1.5;
+    _rrect(ctx, togX, togY, togW, togH, togH / 2); ctx.fill();
+    _rrect(ctx, togX, togY, togW, togH, togH / 2); ctx.stroke();
+
+    // Toggle knob
+    const knobX = fsOn ? togX + togW - togH / 2 - 2 : togX + togH / 2 + 2;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(knobX, togY + togH / 2, togH / 2 - 4, 0, Math.PI * 2); ctx.fill();
+
+    // Label ON/OFF
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('✕', closeX + closeSize / 2, closeY + closeSize / 2);
+    ctx.font         = "bold 11px 'Exo 2', sans-serif";
+    ctx.fillStyle    = fsOn ? 'rgba(255,255,255,0.90)' : 'rgba(160,200,255,0.55)';
+    ctx.fillText(fsOn ? 'ON' : 'OFF', togX + togW / 2, togY + togH / 2);
 
-    // ── Divider ───────────────────────────────────────────
-    ctx.strokeStyle = 'rgba(60,160,255,0.25)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(pX + 24, pY + 76); ctx.lineTo(pX + pW - 24, pY + 76); ctx.stroke();
+    const fsHitRect = { x: togX, y: togY, w: togW, h: togH, key: 'fullscreen' };
 
-    // ── Control mode row ──────────────────────────────────
-    const currentMode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
-    const rowY        = pY + 108;
-    ctx.font      = "bold 16px 'Exo 2', sans-serif";
-    ctx.fillStyle = 'rgba(180,220,255,0.85)';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText('Control Mode', pX + 28, rowY);
+    // ── Save & Close button ───────────────────────────────
+    const btnW = pW - pad * 2, btnH = 50;
+    const btnX = pX + pad, btnY = pY + pH - btnH - 20;
+    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
+    btnGrad.addColorStop(0, '#ff8c00');
+    btnGrad.addColorStop(1, '#e05000');
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,120,0,0.55)'; ctx.shadowBlur = 16;
+    ctx.fillStyle   = btnGrad;
+    _rrect(ctx, btnX, btnY, btnW, btnH, 10); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,180,60,0.60)'; ctx.lineWidth = 1.5;
+    _rrect(ctx, btnX, btnY, btnW, btnH, 10); ctx.stroke();
 
-    const opts = [
-        { label: '⌨ Keyboard', value: 'keyboard' },
-        { label: '🖱 Mouse',    value: 'mouse'    },
-    ];
-    const btnW = 110, btnH = 36, gap = 10;
-    const startX = pX + pW - (opts.length * (btnW + gap)) - 18 + gap;
-    const settingsRows = [{ key: 'finNFury_controlMode', opts: [] }];
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font         = "bold 22px 'Bangers', cursive";
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle    = '#ffffff';
+    ctx.fillText('SAVE & CLOSE', W / 2, btnY + btnH / 2 + 1);
+    ctx.letterSpacing = '0px';
 
-    opts.forEach((opt, i) => {
-        const bx     = startX + i * (btnW + gap);
-        const by     = rowY - btnH / 2;
-        const active = currentMode === opt.value;
-        settingsRows[0].opts.push({ x: bx, y: by, w: btnW, h: btnH, value: opt.value });
-
-        const gd = ctx.createLinearGradient(bx, by, bx, by + btnH);
-        if (active) {
-            gd.addColorStop(0, '#00a8ff');
-            gd.addColorStop(1, '#0044aa');
-        } else {
-            gd.addColorStop(0, 'rgba(20,40,80,0.85)');
-            gd.addColorStop(1, 'rgba(10,20,50,0.85)');
-        }
-        ctx.fillStyle   = gd;
-        _rrect(ctx, bx, by, btnW, btnH, 8); ctx.fill();
-        ctx.strokeStyle = active ? 'rgba(0,220,255,0.90)' : 'rgba(60,120,200,0.40)';
-        ctx.lineWidth   = active ? 2 : 1.2;
-        _rrect(ctx, bx, by, btnW, btnH, 8); ctx.stroke();
-
-        ctx.font         = "bold 14px 'Exo 2', sans-serif";
-        ctx.fillStyle    = active ? '#ffffff' : 'rgba(140,180,230,0.65)';
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(opt.label, bx + btnW / 2, by + btnH / 2);
-    });
-
-    // Store rows for click detection
-    game._settingsRows = settingsRows;
-
-    // ── Volume row ────────────────────────────────────────
-    const volRowY = rowY + 68;
-    ctx.font      = "bold 16px 'Exo 2', sans-serif";
-    ctx.fillStyle = 'rgba(180,220,255,0.85)';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText('Music Volume', pX + 28, volRowY);
-
-    const volPct = game.bgm ? game.bgm.volume : 0.4;
-    const trackW = pW - 56 - 120, trackH = 8;
-    const trackX = pX + 28, trackY = volRowY + 24;
-    ctx.fillStyle   = 'rgba(20,40,80,0.85)';
-    _rrect(ctx, trackX, trackY - trackH / 2, trackW, trackH, 4); ctx.fill();
-    ctx.fillStyle   = 'rgba(0,180,255,0.75)';
-    _rrect(ctx, trackX, trackY - trackH / 2, trackW * volPct, trackH, 4); ctx.fill();
-    ctx.fillStyle = 'rgba(140,200,255,0.55)';
-    ctx.font      = "14px 'Exo 2', sans-serif";
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(volPct * 100)}%`, trackX + trackW + 10, trackY);
-
-    // ── Bottom hint ───────────────────────────────────────
-    ctx.font      = "13px 'Exo 2', sans-serif";
-    ctx.fillStyle = 'rgba(100,160,220,0.45)';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('Press ESC to close', W / 2, pY + pH - 22);
+    // ── Store hit rects for input.js ──────────────────────
+    game._settingsHitRects = { s1, s2, modeHitRect, fsHitRect,
+        saveBtn: { x: btnX, y: btnY, w: btnW, h: btnH } };
+    game.closeBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH }; // Save & Close = close
 
     ctx.restore();
 }

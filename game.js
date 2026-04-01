@@ -106,9 +106,18 @@ class GameSystem {
         // ── Pause / Settings ──────────────────────────────────
         this.isPaused      = false;
         this.showSettings  = false;
-        this.settingsBtnRect = null;   // top-right gear button hit area
-        this.resumeBtnRect   = null;   // "Resume" button on pause screen
-        this.closeBtnRect    = null;   // "✕" on settings panel
+        this.settingsBtnRect = null;
+        this.resumeBtnRect   = null;
+        this.closeBtnRect    = null;
+
+        // ── Settings values (live-edited, saved on "Save & Close") ──
+        this._settings = {
+            musicVol:    parseFloat(localStorage.getItem('finNFury_musicVol')    ?? '0.7'),
+            sfxVol:      parseFloat(localStorage.getItem('finNFury_sfxVol')      ?? '0.9'),
+            controlMode: localStorage.getItem('finNFury_controlMode')             || 'keyboard',
+            fullscreen:  localStorage.getItem('finNFury_fullscreen')             === 'true',
+        };
+        this._settingsDraft = null;  // holds unsaved edits while panel is open
 
         // Camera
         this.cam   = { x: 0, y: 0 };
@@ -444,10 +453,52 @@ class GameSystem {
         if (this.bgm) this.bgm.pause();
     }
 
+    _openSettings() {
+        this.isPaused     = true;
+        this.showSettings = true;
+        // Clone current settings into a draft so Cancel discards changes
+        this._settings = {
+            musicVol:    parseFloat(localStorage.getItem('finNFury_musicVol')    ?? '0.7'),
+            sfxVol:      parseFloat(localStorage.getItem('finNFury_sfxVol')      ?? '0.9'),
+            controlMode: localStorage.getItem('finNFury_controlMode')             || 'keyboard',
+            fullscreen:  localStorage.getItem('finNFury_fullscreen')             === 'true',
+        };
+        if (this.bgm) this.bgm.pause();
+    }
+
     _closeSettings() {
+        // "Save & Close" — persist everything
+        localStorage.setItem('finNFury_musicVol',    this._settings.musicVol);
+        localStorage.setItem('finNFury_sfxVol',      this._settings.sfxVol);
+        localStorage.setItem('finNFury_controlMode', this._settings.controlMode);
+        localStorage.setItem('finNFury_fullscreen',  this._settings.fullscreen);
+
+        // Apply music volume immediately
+        if (this.bgm) this.bgm.volume = this._settings.musicVol;
+
+        // Apply fullscreen
+        if (this._settings.fullscreen && !document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else if (!this._settings.fullscreen && document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        }
+
+        // If switched away from mouse mode, clear mouse state
+        if (this._settings.controlMode !== 'mouse') {
+            this.mouseActive = false;
+            this.mouseWorld  = null;
+        }
+
         this.showSettings = false;
         this.isPaused     = false;
         if (this.bgm) this.bgm.play().catch(() => {});
+    }
+
+    _goHome() {
+        if (this.bgm) { this.bgm.pause(); this.bgm.currentTime = 0; }
+        this.isPaused     = false;
+        this.showSettings = false;
+        window.location.href = 'fin_n_fury.html';
     }
 
     _restartGame() {

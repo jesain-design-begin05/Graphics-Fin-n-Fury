@@ -13,7 +13,7 @@
 /* Stage 1 — Sunlit Surface Layer */
 .path1-stage1 {
   background:
-    url("rockko.png") bottom center / 25% auto no-repeat,
+    url("rockko.png") bottom center / 55% auto no-repeat,
 
     /* existing layers ↓ */
     repeating-linear-gradient(

@@ -37,9 +37,16 @@ function initInput(game) {
         const sx   = e.clientX - rect.left;
         const sy   = e.clientY - rect.top;
         game.mouseScreen = { x: sx, y: sy };
+        // Pause / settings menu hover
+        _routeCanvasMouseMove(game, sx, sy);
+        // Drag sliders in settings
+        if (game.showSettings && game._settingsDragging) {
+            _handleSettingsDrag(game, sx, sy);
+            return;
+        }
         // Only activate mouse-based movement when control mode is 'mouse'
         const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
-        if (mode === 'mouse' && game.cam) {
+        if (mode === 'mouse' && game.cam && !game.isPaused) {
             game.mouseWorld  = screenToWorld(game, sx, sy);
             game.mouseActive = true;
         }
@@ -51,11 +58,22 @@ function initInput(game) {
     });
 
     game.canvas.addEventListener('mousedown', e => {
-        if (e.button === 0) game.fishAttacking = true;
+        if (e.button === 0) {
+            const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
+            if (game.showSettings) {
+                game._settingsDragging = true;
+                return;
+            }
+            // In mouse control mode, left-click moves the fish — don't also shoot
+            if (mode !== 'mouse') game.fishAttacking = true;
+        }
     });
 
     game.canvas.addEventListener('mouseup', e => {
-        if (e.button === 0) game.fishAttacking = false;
+        if (e.button === 0) {
+            game._settingsDragging = false;
+            game.fishAttacking = false;
+        }
     });
 
     // ── Touch ─────────────────────────────────────────────────
@@ -89,8 +107,9 @@ function _routeCanvasClick(game, e) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Settings panel interactions
+    // ── Settings panel ────────────────────────────────────
     if (game.showSettings) {
+        // Back link (stored in closeBtnRect by renderer)
         if (game.closeBtnRect) {
             const b = game.closeBtnRect;
             if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._closeSettings(); return; }
@@ -99,19 +118,25 @@ function _routeCanvasClick(game, e) {
         return;
     }
 
-    // Pause screen resume button
-    if (game.isPaused && game.resumeBtnRect) {
-        const b = game.resumeBtnRect;
-        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { game._togglePause(); return; }
-        // Also check if settings icon was clicked while paused
+    // ── Pause menu ────────────────────────────────────────
+    if (game.isPaused) {
+        const items = game._pauseMenuItems || [];
+        for (const item of items) {
+            if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
+                if (item.key === 'resume')   { game._togglePause(); return; }
+                if (item.key === 'settings') { game._openSettings(); return; }
+                if (item.key === 'home')     { game._goHome(); return; }
+            }
+        }
+        // Also allow gear icon to open settings while paused
         if (game.settingsBtnRect) {
             const s = game.settingsBtnRect;
             if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) { game._openSettings(); return; }
         }
-        return; // Block other clicks while paused
+        return; // block other clicks while paused
     }
 
-    // Gear / settings button (top-right, always visible during play)
+    // ── Gear / settings button (top-right, during normal play) ──
     if (game.settingsBtnRect && !game.gameOver && !game.stageClear) {
         const s = game.settingsBtnRect;
         if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) { game._openSettings(); return; }
@@ -127,38 +152,96 @@ function _routeCanvasClick(game, e) {
     }
 }
 
-// Handle clicks inside the settings panel (control mode toggle, etc.)
-function _handleSettingsClick(game, x, y) {
-    if (!game._settingsRows) return;
-    for (const row of game._settingsRows) {
-        for (const opt of row.opts) {
-            if (x >= opt.x && x <= opt.x + opt.w && y >= opt.y && y <= opt.y + opt.h) {
-                localStorage.setItem(row.key, opt.value);
-                // If switching away from mouse, clear mouse state
-                if (row.key === 'finNFury_controlMode' && opt.value !== 'mouse') {
-                    game.mouseActive = false;
-                    game.mouseWorld  = null;
-                }
-                return;
-            }
+// ── Hover detection for pause menu ───────────────────────────────
+function _routeCanvasMouseMove(game, x, y) {
+    if (game.showSettings) {
+        // Hover over Back link
+        const b = game.closeBtnRect;
+        game._pauseHover = (b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h)
+            ? 'settingsBack' : null;
+        return;
+    }
+    if (!game.isPaused) { game._pauseHover = null; return; }
+    const items = game._pauseMenuItems || [];
+    game._pauseHover = null;
+    for (const item of items) {
+        if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
+            game._pauseHover = item.key; break;
         }
+    }
+}
+
+// Handle clicks + drags inside the settings panel
+function _handleSettingsClick(game, x, y) {
+    const hr = game._settingsHitRects;
+    if (!hr) return;
+
+    // Save & Close button
+    const sb = hr.saveBtn;
+    if (x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
+        game._closeSettings();
+        return;
+    }
+
+    // Music volume slider
+    const s1 = hr.s1;
+    if (x >= s1.x && x <= s1.x + s1.w && y >= s1.y && y <= s1.y + s1.h) {
+        game._settings.musicVol = Math.max(0, Math.min(1, (x - s1.x) / s1.w));
+        if (game.bgm) game.bgm.volume = game._settings.musicVol;
+        return;
+    }
+
+    // SFX volume slider
+    const s2 = hr.s2;
+    if (x >= s2.x && x <= s2.x + s2.w && y >= s2.y && y <= s2.y + s2.h) {
+        game._settings.sfxVol = Math.max(0, Math.min(1, (x - s2.x) / s2.w));
+        return;
+    }
+
+    // Control mode dropdown — cycle on click
+    const m = hr.modeHitRect;
+    if (x >= m.x && x <= m.x + m.w && y >= m.y && y <= m.y + m.h) {
+        const cur = m.values.indexOf(game._settings.controlMode);
+        game._settings.controlMode = m.values[(cur + 1) % m.values.length];
+        return;
+    }
+
+    // Fullscreen toggle
+    const f = hr.fsHitRect;
+    if (x >= f.x && x <= f.x + f.w && y >= f.y && y <= f.y + f.h) {
+        game._settings.fullscreen = !game._settings.fullscreen;
+        return;
+    }
+}
+
+// Drag support for sliders — track mousedown inside settings panel
+function _handleSettingsDrag(game, x, y) {
+    const hr = game._settingsHitRects;
+    if (!hr) return;
+    const s1 = hr.s1;
+    if (x >= s1.x && x <= s1.x + s1.w && y >= s1.y && y <= s1.y + s1.h) {
+        game._settings.musicVol = Math.max(0, Math.min(1, (x - s1.x) / s1.w));
+        if (game.bgm) game.bgm.volume = game._settings.musicVol;
+    }
+    const s2 = hr.s2;
+    if (x >= s2.x && x <= s2.x + s2.w && y >= s2.y && y <= s2.y + s2.h) {
+        game._settings.sfxVol = Math.max(0, Math.min(1, (x - s2.x) / s2.w));
     }
 }
 
 // ── Mouse movement ────────────────────────────────────────────
 // Fish glides toward cursor at PLAYER_SPEED_BASE px/s
 function applyMouseMovement(game, dt) {
-    // If control mode is not mouse, clear mouse state and bail
+    // Use saved (committed) control mode from localStorage — _settings may be mid-edit
     const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
     if (mode !== 'mouse') { game.mouseActive = false; return; }
     if (!game.mouseActive || !game.mouseWorld) return;
+    if (game.isPaused) return;
 
     const DEAD_ZONE = 14;
-
     const dx   = game.mouseWorld.x - game.fishX;
     const dy   = game.mouseWorld.y - game.fishY;
     const dist = Math.hypot(dx, dy);
-
     if (dist < DEAD_ZONE) return;
 
     const move = Math.min(PLAYER_SPEED_BASE * dt, dist);
@@ -170,7 +253,6 @@ function applyMouseMovement(game, dt) {
 
 // ── Keyboard movement ─────────────────────────────────────────
 function applyKeyboardMovement(game, dt) {
-    // If control mode is mouse, keyboard movement is disabled
     const mode = localStorage.getItem('finNFury_controlMode') || 'keyboard';
     if (mode === 'mouse') return;
 

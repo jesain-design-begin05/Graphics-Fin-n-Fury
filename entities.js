@@ -9,6 +9,8 @@
    the visible play area and never disappear for long.
 ================================================================= */
 
+const MANTA_SPEED = 55; // forward glide speed (px/s)
+
 function makeFish(worldW, worldH, yMin, yMax, speedMin, speedMax, extra = {}) {
     return {
         x: Math.random() * worldW,
@@ -45,16 +47,18 @@ function spawnStageEntities(game) {
 
     // ── Manta ray — slow background glider, top/mid area ─────
     // Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
+    // Always moves LEFT so the sprite naturally faces forward (no flip needed).
+    // Wraps fully offscreen before reappearing on the right.
     game.mantaRay = {
-        x:          Math.random() * W,
-        y:          H * 0.10 + Math.random() * H * 0.20, // 10%–30% down
-        vx:         (Math.random() > 0.5 ? 1 : -1) * 55, // slow majestic glide
+        x:          game.world.w + 300,   // start offscreen right, glides in from right
+        y:          H * 0.10 + Math.random() * H * 0.20,
+        vx:         -MANTA_SPEED,         // always moving left — sprite faces left naturally
         bobOffset:  Math.random() * Math.PI * 2,
         frameCol:   0,
         frameRow:   0,
         frameTimer: 0,
-        COLS: 4,         // 4 frames across
-        ROWS: 2,         // 2 rows
+        COLS: 4,
+        ROWS: 2,
     };
 
     const mkDef = (type, yMin, yMax, extra) => makeFish(
@@ -300,21 +304,31 @@ function updateMantaRay(game, dt) {
     const m = game.mantaRay;
     if (!m) return;
 
-    // Advance sprite frame every 0.12 s → ~8 fps animation
+    // Slow wing beat — one full flap cycle every ~1.8s (4 frames × 0.45s each)
+    // Lock to row 0 only — row 1 caused the doubled-flap bug
     m.frameTimer += dt;
-    if (m.frameTimer >= 0.12) {
+    if (m.frameTimer >= 0.45) {
         m.frameTimer = 0;
-        m.frameCol = (m.frameCol + 1) % m.COLS;
-        // Advance row after each full column cycle (loops all 8 frames)
-        if (m.frameCol === 0) m.frameRow = (m.frameRow + 1) % m.ROWS;
+        m.frameCol   = (m.frameCol + 1) % m.COLS;
+        m.frameRow   = 0;
     }
 
+    // Always moving left — sprite faces left naturally so no flip needed
+    m.vx = -MANTA_SPEED;
     m.x += m.vx * dt;
 
-    // World-edge wrap — same pattern as all other fish
-    const margin = 80;
-    if      (m.vx > 0 && m.x > game.world.w - margin) m.x = margin + 10;
-    else if (m.vx < 0 && m.x < margin)                 m.x = game.world.w - margin - 10;
+    // Wrap fully offscreen: exit left edge → reenter from far right (and vice versa)
+    const img   = game.mantaRayImg;
+    const halfW = img && img.complete && img.naturalWidth > 0
+        ? (img.naturalWidth / m.COLS) * 5 / 2   // scale=5 matches renderer
+        : 300;
+    const worldW = game.world.w;
+
+    if (m.x < -halfW) {
+        // Finished crossing left edge — reenter from right, pick a new Y
+        m.x = worldW + halfW;
+        m.y = game.world.h * 0.08 + Math.random() * game.world.h * 0.22;
+    }
 }
 
 /**
@@ -707,7 +721,9 @@ function spawnDecorations(game) {
             x:     W * 0.20 + Math.random() * W * 0.60,
             y:     H * 0.42 + Math.random() * H * 0.15,
             scale: 1.10,
+            vx:    (Math.random() > 0.5 ? 1 : -1) * (25 + Math.random() * 20),
         },
+
     ];
 
     // ── Seaweed clumps — base on seabed, spread across the floor ─

@@ -9,7 +9,7 @@
 ================================================================= */
 
 /**
- * Initialises camera state on `game`.
+ * Initialises camera state on game.
  * Call once per stage (or on resize) — world size is derived from
  * the current canvas / viewport size.
  *
@@ -42,12 +42,8 @@ function updateCamera(game, dt) {
     const vW = game.canvas.width  / game.dpr;
     const vH = game.canvas.height / game.dpr;
 
-    const SIZE_MIN   = 0.42;
-    const SIZE_MAX   = 1.85;
-    const ZOOM_BIG   = 1.00;   // zoom when Fin is tiny
-    const ZOOM_SMALL = 0.65;   // zoom when Fin is at max size
-    const t = Math.max(0, Math.min(1, (game.playerSize - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)));
-    const targetZoom = ZOOM_BIG + (ZOOM_SMALL - ZOOM_BIG) * t;
+    // Keep zoom constant regardless of player size
+    const targetZoom = 1.0;
 
     // Smooth zoom transition
     if (!game.camZoom) game.camZoom = ZOOM_BIG;
@@ -68,7 +64,14 @@ function updateCamera(game, dt) {
 
     // Clamp so camera never shows outside world bounds
     game.cam.x = Math.max(0, Math.min(game.world.w - visW, game.cam.x));
-    game.cam.y = Math.max(0, Math.min(game.world.h - visH, game.cam.y));
+    
+    // Clamp Y with balanced margins — if visible height > world height,
+    // center the view vertically to avoid unequal spacing top/bottom
+    if (visH >= game.world.h) {
+        game.cam.y = (game.world.h - visH) / 2;
+    } else {
+        game.cam.y = Math.max(0, Math.min(game.world.h - visH, game.cam.y));
+    }
 }
 
 /**
