@@ -190,6 +190,7 @@ function checkCollisions(game) {
     const rank = playerSizeRank(game.playerSize);
 
     _checkEatFish(game, pr, rank);
+    _checkFishEatFish(game);       // NPC predation: big fish eat smaller fish
     _checkEnemyContact(game, pr);
     _checkBossContact(game, pr);
     _checkKingCrabContact(game, pr);
@@ -257,6 +258,94 @@ function _checkEatFish(game, pr, rank) {
     tryEat(game.bgTunafish,
         FISH_DEF.tunafish.hitRadius,   SCORE.LARGE,  GROW.LARGE,  3,
         FISH_DEF.tunafish.eatsFin);
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// NPC fish predation — bigger tropical fish eat smaller ones,
+// furyfish and enemy eat any tropical fish they overlap.
+//
+// Size hierarchy (by scale, ascending):
+//   tinyfish(0.50) < clownfish(0.90) ≈ tertiary(0.88)
+//     < goldfish(1.30) < secondfish(1.70) < tunafish(2.05)
+//       < enemy(1.95*) < furyfish(2.40)
+//   (* enemy is treated as above tunafish tier)
+//
+// Rules:
+//   • A predator eats a prey when their bodies overlap AND
+//     the prey is within the predator's forward FOV cone.
+//   • Eaten fish are spliced from their array immediately.
+//   • No score or growth is awarded — this is pure world ecology.
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Check whether predator `pred` (with radius `predR`) overlaps
+ * prey `prey` (with radius `preyR`) using head-only detection
+ * on the predator's side (it must be facing the prey).
+ */
+function _predOverlaps(pred, predR, prey, preyR) {
+    const head = _fishHead(pred, predR);
+    return Math.hypot(prey.x - head.x, prey.y - head.y) < predR * 0.6 + preyR * 0.5;
+}
+
+function _checkFishEatFish(game) {
+    // ── Helper: eat every fish in `preyArr` that overlaps `pred` ──
+    function devour(pred, predR, preyArr, preyR) {
+        for (let i = preyArr.length - 1; i >= 0; i--) {
+            if (_predOverlaps(pred, predR, preyArr[i], preyR)) {
+                preyArr.splice(i, 1);
+            }
+        }
+    }
+
+    // ── Tunafish eats: secondfish, tertiary, goldfish, clownfish, tinyfish ──
+    for (const pred of game.bgTunafish) {
+        devour(pred, FISH_DEF.tunafish.hitRadius,   game.bgSecondfish,   FISH_DEF.secondfish.hitRadius);
+        devour(pred, FISH_DEF.tunafish.hitRadius,   game.bgTertiaryfish, FISH_DEF.tertiary.hitRadius);
+        devour(pred, FISH_DEF.tunafish.hitRadius,   game.bgGoldfish,     FISH_DEF.goldfish.hitRadius);
+        devour(pred, FISH_DEF.tunafish.hitRadius,   game.bgClownfish,    FISH_DEF.clownfish.hitRadius);
+        devour(pred, FISH_DEF.tunafish.hitRadius,   game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
+
+    // ── Secondfish eats: tertiary, goldfish, clownfish, tinyfish ──
+    for (const pred of game.bgSecondfish) {
+        devour(pred, FISH_DEF.secondfish.hitRadius, game.bgTertiaryfish, FISH_DEF.tertiary.hitRadius);
+        devour(pred, FISH_DEF.secondfish.hitRadius, game.bgGoldfish,     FISH_DEF.goldfish.hitRadius);
+        devour(pred, FISH_DEF.secondfish.hitRadius, game.bgClownfish,    FISH_DEF.clownfish.hitRadius);
+        devour(pred, FISH_DEF.secondfish.hitRadius, game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
+
+    // ── Goldfish eats: clownfish, tinyfish ──
+    for (const pred of game.bgGoldfish) {
+        devour(pred, FISH_DEF.goldfish.hitRadius,   game.bgClownfish,    FISH_DEF.clownfish.hitRadius);
+        devour(pred, FISH_DEF.goldfish.hitRadius,   game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
+
+    // ── Clownfish eats: tinyfish (only — clownfish are same rank as tertiary) ──
+    for (const pred of game.bgClownfish) {
+        devour(pred, FISH_DEF.clownfish.hitRadius,  game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
+
+    // ── Furyfish eats every tropical fish it overlaps ──────────
+    for (const pred of game.bgFuryfish) {
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgTunafish,     FISH_DEF.tunafish.hitRadius);
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgSecondfish,   FISH_DEF.secondfish.hitRadius);
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgTertiaryfish, FISH_DEF.tertiary.hitRadius);
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgGoldfish,     FISH_DEF.goldfish.hitRadius);
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgClownfish,    FISH_DEF.clownfish.hitRadius);
+        devour(pred, FISH_DEF.furyfish.hitRadius,   game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
+
+    // ── Enemy eats every tropical fish it overlaps ─────────────
+    // enemy.scale ≈ 1.95 — treat as above tunafish tier
+    for (const pred of game.bgEnemies) {
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgTunafish,     FISH_DEF.tunafish.hitRadius);
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgSecondfish,   FISH_DEF.secondfish.hitRadius);
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgTertiaryfish, FISH_DEF.tertiary.hitRadius);
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgGoldfish,     FISH_DEF.goldfish.hitRadius);
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgClownfish,    FISH_DEF.clownfish.hitRadius);
+        devour(pred, FISH_DEF.enemy.hitRadius,      game.bgTinyfish,     FISH_DEF.tinyfish.hitRadius);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────

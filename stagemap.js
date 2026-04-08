@@ -85,7 +85,7 @@
       function removeHover() { btn.classList.remove('hovered'); }
 
       btn.addEventListener('mouseenter', addHover);
-      btn.addEventListener('mouseleave', removeHover);
+      btn.addEventListener('mouseleave', removeHover);  
       btn.addEventListener('focus',      addHover);
       btn.addEventListener('blur',       removeHover);
     });

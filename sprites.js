@@ -53,6 +53,20 @@ function initSpriteContainers(game) {
     game.projectileSprites = {};
     game.bossSprite       = {};
 
+    // ── Stage rock / seabed backdrop images (drawn in world-space) ──
+    // Index matches: 0=path1s1, 1=path1s2, 2=path1s3, 3=path2s1, 4=path2s2, 5=path2s3
+    game.rockImgs = [];
+
+    // ── Floor rock scatter sprites (path 1) ──────────────────
+    game.decoTallRock  = null;   // tall_rock.png  — path1 stage3 only
+    game.decoHugeRock  = null;   // huge_rock.png  — all path1 stages
+    game.decoStone     = null;   // stone.png      — all path1 stages
+    game.decoStone1    = null;   // stone1.png     — all path1 stages
+    game.decoStone2    = null;   // stone2.png     — all path1 stages
+
+    // ── Ocean floor strip ─────────────────────────────────────
+    game.decoOceanFloor = null;  // tiled sandy/rocky strip at world bottom
+
     // ── Decorative world assets ───────────────────────────────
     game.decoBoat        = null;
     game.decoCoral1      = null;
@@ -127,6 +141,27 @@ function loadSprites(game) {
     game.clamSprite.open   = img(); game.clamSprite.open.src   = 'collectibles/clam_open.png';
     game.pearlSprite       = img(); game.pearlSprite.src        = 'pearl.png';
     game.gameOverSprite    = img(); game.gameOverSprite.src     = 'game_over.png';
+
+    // ── Stage rock backdrop images (world-space floor decoration) ──
+    const rockSrcs = [
+        'backgrounds_new/form_of_rocks.png',    // path1 stage1
+        'backgrounds_new/form_of_rocks1.png',   // path1 stage2
+        'backgrounds_new/form_of_rocks2.png',   // path1 stage3
+        'backgrounds_new/abyssal_rock3.3.png',  // path2 stage1
+        'backgrounds_new/abyssal_rock2.4.png',  // path2 stage2
+        'backgrounds_new/abyssal_rock2.2.png',  // path2 stage3
+    ];
+    for (const src of rockSrcs) {
+        const ri = img(); ri.src = src;
+        game.rockImgs.push(ri);
+    }
+
+    // ── Floor rock scatter sprites (path 1) ──────────────────
+    game.decoTallRock = img(); game.decoTallRock.src = 'tall_rock.png';
+    game.decoHugeRock = img(); game.decoHugeRock.src = 'huge_rock.png';
+    game.decoStone    = img(); game.decoStone.src    = 'stone.png';
+    game.decoStone1   = img(); game.decoStone1.src   = 'stone1.png';
+    game.decoStone2   = img(); game.decoStone2.src   = 'stone2.png';
 
     // ── Decorative world assets ───────────────────────────────
     game.decoBoat       = img(); game.decoBoat.src       = 'boat.png';

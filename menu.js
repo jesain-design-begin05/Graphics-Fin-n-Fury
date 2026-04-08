@@ -32,12 +32,12 @@ class MenuSystem {
         this.imgBottom = Object.assign(new Image(), { src: 'fishshadow.png' });
 
         this._bgAssets = {
-            boat:     Object.assign(new Image(), { src: 'boat.png' }),
-            coral:    Object.assign(new Image(), { src: 'coral.png' }),
-            coral1:   Object.assign(new Image(), { src: 'coral1.png' }),
-            coral3:   Object.assign(new Image(), { src: 'coral3.png' }),
-            seagrass: Object.assign(new Image(), { src: 'seagras.png' }),
-            seaweed:  Object.assign(new Image(), { src: 'seaweed_sprite.png' }),
+            boat:     Object.assign(new Image(), { src: 'backgrounds_new/boat.png' }),
+            coral:    Object.assign(new Image(), { src: 'backgrounds_new/coral.png' }),
+            coral1:   Object.assign(new Image(), { src: 'backgrounds_new/coral1.png' }),
+            coral3:   Object.assign(new Image(), { src: 'backgrounds_new/coral3.png' }),
+            seagrass: Object.assign(new Image(), { src: 'backgrounds_new/seagras.png' }),
+            seaweed:  Object.assign(new Image(), { src: 'backgrounds_new/seaweed_sprite.png' }),
         };
 
         this._init();

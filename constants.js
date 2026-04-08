@@ -64,29 +64,30 @@ function enemyHpForStage(stage) {
 
 const STAGE_DEFS = {
     // ── Path 1: Kelp Forest (stages 1–3) ──────────────────────────────
-    1:  { tinyfish: 10, clownfish:  6, goldfish:  5,                                                              enemies: 2                             },
-    2:  { tinyfish: 12, clownfish:  7, goldfish:  6,                                           furyfish:  3,      enemies: 4                             },
-    3:  { tinyfish: 10, clownfish:  8, goldfish:  6, secondfish:  4,             tunafish:  2,  furyfish:  4,     enemies: 5, hasBoss: true               },
+    // enemies: stage N always spawns exactly N enemies (stage 1 = 1, stage 2 = 2, …)
+    1:  { tinyfish: 10, clownfish:  6, goldfish:  5,                                                              enemies:  1                        },
+    2:  { tinyfish: 12, clownfish:  7, goldfish:  6,                                                 enemies:  2                            },
+    3:  { tinyfish: 10, clownfish:  8, goldfish:  6, secondfish:  4,             tunafish:  2,       enemies:  3,               },
 
     // ── Path 2: Abyssal Chasm (stages 4–6) ────────────────────────────
-    4:  { tinyfish: 12, clownfish:  9, goldfish:  8, secondfish:  5,                                              enemies: 5                             },
-    5:  { tinyfish: 10, clownfish: 10, goldfish:  8, secondfish:  6, tertiaryfish:  4,         furyfish:  5,      enemies: 6                             },
-    6:  { tinyfish:  8, clownfish: 10, goldfish:  8, secondfish:  7, tertiaryfish:  5, tunafish:  3, furyfish: 6, enemies: 6, hasBoss: true               },
+    4:  { tinyfish: 12, clownfish:  9, goldfish:  8, secondfish:  5,                                              enemies:  4                            },
+    5:  { tinyfish: 10, clownfish: 10, goldfish:  8, secondfish:  6, tertiaryfish:  4,               enemies:  5                            },
+    6:  { tinyfish:  8, clownfish: 10, goldfish:  8, secondfish:  7, tertiaryfish:  5, tunafish:  3,  enemies:  6,              },
 
     // ── Path 3: Kraken's Lair (stages 7–9) ────────────────────────────
-    7:  { tinyfish:  8, clownfish: 11, goldfish:  9, secondfish:  8, tertiaryfish:  7, tunafish:  5, furyfish: 6, enemies: 7                             },
-    8:  { tinyfish:  6, clownfish: 11, goldfish:  9, secondfish:  9, tertiaryfish:  9, tunafish:  7, furyfish: 7, enemies: 8                             },
-    9:  { tinyfish:  5, clownfish: 11, goldfish:  9, secondfish: 10, tertiaryfish: 10, tunafish: 10, furyfish: 8, enemies: 8, hasBoss: true               },
+    7:  { tinyfish:  8, clownfish: 11, goldfish:  9, secondfish:  8, tertiaryfish:  7, tunafish:  5,  enemies:  5                            },
+    8:  { tinyfish:  6, clownfish: 11, goldfish:  9, secondfish:  9, tertiaryfish:  9, tunafish:  7,  enemies:  4                          },
+    9:  { tinyfish:  5, clownfish: 11, goldfish:  9, secondfish: 10, tertiaryfish: 10, tunafish: 10,  enemies:  5            },
 
     // ── Path 4: Sunken Atlantis (stages 10–12) ────────────────────────
-    10: { tinyfish:  4, clownfish: 10, goldfish:  8, secondfish: 11, tertiaryfish: 12, tunafish: 10, furyfish: 8, enemies: 9                             },
-    11: { tinyfish:  3, clownfish:  9, goldfish:  8, secondfish: 12, tertiaryfish: 14, tunafish: 13, furyfish: 9, enemies:10                             },
-    12: { tinyfish:  2, clownfish:  9, goldfish:  7, secondfish: 12, tertiaryfish: 16, tunafish: 18, furyfish:10, enemies:10, hasBoss: true               },
+    10: { tinyfish:  4, clownfish: 10, goldfish:  8, secondfish: 11, tertiaryfish: 12, tunafish: 10, enemies: 4                         },
+    11: { tinyfish:  3, clownfish:  9, goldfish:  8, secondfish: 12, tertiaryfish: 14, tunafish: 13, enemies: 6                            },
+    12: { tinyfish:  2, clownfish:  9, goldfish:  7, secondfish: 12, tertiaryfish: 16, tunafish: 18, enemies: 7            },
 
     // ── Path 5: Volcanic Vent (stages 13–15) ──────────────────────────
-    13: { tinyfish:  2, clownfish:  8, goldfish:  7, secondfish: 12, tertiaryfish: 18, tunafish: 20, furyfish:10, enemies:11                             },
-    14: { tinyfish:  2, clownfish:  7, goldfish:  6, secondfish: 12, tertiaryfish: 20, tunafish: 24, furyfish:11, enemies:12                             },
-    15: { tinyfish:  2, clownfish:  7, goldfish:  6, secondfish: 13, tertiaryfish: 22, tunafish: 28, furyfish:12, enemies:12, hasBoss: true               },
+    13: { tinyfish:  2, clownfish:  8, goldfish:  7, secondfish: 12, tertiaryfish: 18, tunafish: 20,  enemies: 6                             },
+    14: { tinyfish:  2, clownfish:  7, goldfish:  6, secondfish: 12, tertiaryfish: 20, tunafish: 24,  enemies: 5              },
+    15: { tinyfish:  2, clownfish:  7, goldfish:  6, secondfish: 13, tertiaryfish: 22, tunafish: 28,  enemies: 10           },
 };
 
 const STAGE_CSS_CLASS = {

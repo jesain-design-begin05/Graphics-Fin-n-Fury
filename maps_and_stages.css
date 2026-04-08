@@ -13,8 +13,6 @@
 /* Stage 1 — Sunlit Surface Layer */
 .path1-stage1 {
   background:
-    url("rockko.png") bottom center / 55% auto no-repeat,
-
     /* existing layers ↓ */
     repeating-linear-gradient(
       172deg,
@@ -106,22 +104,24 @@
 /* Stage 1 — Twilight Zone (mesopelagic) */
 .path2-stage1 {
   background:
-    /* Pressure diffraction halos — subtle rings */
-    radial-gradient(ellipse 120% 40% at 50% 0%, rgba(30, 80, 180, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 25% at 50% 100%, rgba(10, 30, 90, 0.2) 0%, transparent 60%),
-    /* Twilight blue column */
+    /* Light rays from above */
+    radial-gradient(ellipse at 50% 0%, rgba(80, 150, 255, 0.15) 0%, transparent 60%),
+
+    /* Mid-depth fog */
+    radial-gradient(ellipse at 50% 60%, rgba(0, 0, 0, 0.25) 0%, transparent 70%),
+
+    /* Deep sea gradient */
     linear-gradient(
       to bottom,
       #0c3f8c 0%,
-      #0a3478 10%,
-      #082b68 22%,
-      #07245a 35%,
-      #061e4e 50%,
-      #051844 65%,
-      #041238 80%,
-      #030e2e 100%
+      #0a3478 15%,
+      #082b68 30%,
+      #061f4f 50%,
+      #04173d 70%,
+      #020f2c 100%
     );
-  background-color: #030e2e;
+
+  background-color: #020f2c;
 }
 
 /* Stage 2 — Midnight Zone (bathypelagic) */

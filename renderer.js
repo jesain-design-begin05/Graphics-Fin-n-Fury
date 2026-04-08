@@ -28,14 +28,19 @@ function drawFrame(game) {
     ctx.translate(-vW / 2, -vH / 2);
 
     drawAtmosphere(game, ctx, vW, vH);
+    drawAmbientBubbles(game, ctx, vW, vH);
+    drawAmbientSchools(game, ctx);
+    drawAmbientSilhouettes(game, ctx);
     drawMantaRay(game, ctx);        // ← manta ray behind all other entities
+    drawGameSeaFloor(game, ctx, vW, vH);  // ← back/mid plants + sand (front plants deferred)
     drawDecorations(game, ctx);
     drawBgFish(game, ctx);
     drawBoss(game, ctx);
     drawKingCrab(game, ctx);        // ← King Crab boss (Stage 3)
     drawCollectibles(game, ctx);
     drawProjectiles(game, ctx);
-    drawPlayerFish(game, ctx);
+    drawPlayerFish(game, ctx);      // ← Fin drawn before front vegetation
+    if (game._drawSeaFloorFront) game._drawSeaFloorFront(); // ← front plants over Fin
     drawFloatingTexts(game, ctx);
     drawBubbleTexts(ctx, game, game._lastDt || 0.016);   // ← eat-bubble speech clouds
 
@@ -82,6 +87,212 @@ function drawAtmosphere(game, ctx, W, H) {
         ctx.beginPath(); ctx.arc(sx, sy, p.r, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Game sea floor — drawn in WORLD SPACE (inside the zoom transform)
+//  so it stays anchored at world bottom, never follows the player.
+//  Uses worldToScreen() to get the floor's screen Y each frame.
+// ────────────────────────────────────────────────────────────────
+
+function drawGameSeaFloor(game, ctx, W, H) {
+    const e = game.elapsed;
+
+    // World-bottom in screen pixels
+    const floorScreen = worldToScreen(game, game.world.w / 2, game.world.h);
+    const floorSY = floorScreen.y;
+
+    // Don't draw if floor is scrolled off-screen entirely
+    if (floorSY < -H * 0.5) return;
+
+    // ── 1. Curved sandy floor base ────────────────────────────────
+    const curveH = H * 0.12;
+    const midY   = floorSY - curveH * 0.55;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, floorSY + 40);
+    ctx.lineTo(0, midY + curveH * 0.4);
+    ctx.quadraticCurveTo(W * 0.18, midY - curveH * 0.5, W * 0.35, midY + curveH * 0.15);
+    ctx.quadraticCurveTo(W * 0.50, midY + curveH,        W * 0.65, midY + curveH * 0.1);
+    ctx.quadraticCurveTo(W * 0.82, midY - curveH * 0.4,  W,        midY + curveH * 0.3);
+    ctx.lineTo(W, floorSY + 40);
+    ctx.closePath();
+    const sandGrad = ctx.createLinearGradient(0, midY - curveH, 0, floorSY + 40);
+    sandGrad.addColorStop(0,    'rgba(12, 38, 68, 0.0)');
+    sandGrad.addColorStop(0.1,  'rgba(10, 32, 58, 0.85)');
+    sandGrad.addColorStop(0.35, 'rgba(6,  20, 42, 0.96)');
+    sandGrad.addColorStop(1,    'rgba(2,   8, 18, 1.0)');
+    ctx.fillStyle = sandGrad;
+    ctx.fill();
+    // Ridge highlight
+    ctx.beginPath();
+    ctx.moveTo(0, midY + curveH * 0.4);
+    ctx.quadraticCurveTo(W * 0.18, midY - curveH * 0.5, W * 0.35, midY + curveH * 0.15);
+    ctx.quadraticCurveTo(W * 0.50, midY + curveH,        W * 0.65, midY + curveH * 0.1);
+    ctx.quadraticCurveTo(W * 0.82, midY - curveH * 0.4,  W,        midY + curveH * 0.3);
+    ctx.strokeStyle = 'rgba(60, 140, 200, 0.30)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── 2. Dark depth fade just above the floor ───────────────────
+    ctx.save();
+    const fadeStartY = floorSY - H * 0.40;
+    const fadeGr = ctx.createLinearGradient(0, fadeStartY, 0, floorSY);
+    fadeGr.addColorStop(0,   'rgba(0, 6, 18, 0)');
+    fadeGr.addColorStop(0.6, 'rgba(0, 5, 14, 0.20)');
+    fadeGr.addColorStop(1,   'rgba(0, 3, 10, 0.50)');
+    ctx.fillStyle = fadeGr;
+    ctx.fillRect(0, fadeStartY, W, floorSY - fadeStartY);
+    ctx.restore();
+
+    // ── 3. Layered plants anchored to floorSY ────────────────────
+    const drawPlant = (img, xFrac, scaleFrac, swayAmp, swaySpd, swayPh, alpha, blendMode) => {
+        if (!img || !img.complete || img.naturalWidth === 0) return;
+        const ih   = Math.min(H * scaleFrac, H * 0.30);
+        const sc   = ih / img.naturalHeight;
+        const iw   = img.naturalWidth * sc;
+        const sway = Math.sin(e * swaySpd * 0.3 + swayPh) * swayAmp * 0.35;
+        const baseX = W * xFrac - iw / 2;
+        const baseY = floorSY - ih;   // base sits right on world floor
+        ctx.save();
+        if (blendMode) {
+            ctx.globalCompositeOperation = blendMode;
+            ctx.globalAlpha = 0.85;
+        } else {
+            ctx.globalAlpha = alpha;
+            ctx.globalCompositeOperation = (img === game.decoCoral3) ? 'source-over' : 'lighten';
+        }
+        ctx.transform(1, 0, sway / ih, 1, baseX - (sway / ih) * (baseY + ih), baseY);
+        ctx.drawImage(img, 0, 0, iw, ih);
+        ctx.restore();
+    };
+
+    const sg = game.decoSeagrass;
+    const sw = game.decoSeaweed;
+    const c3 = game.decoCoral3;
+
+    // Back corals
+    [[0.10,0.30,2,0.15,1.4],[0.35,0.28,2,0.17,0.8],[0.60,0.32,2,0.19,1.9],[0.85,0.29,2,0.16,3.1]]
+        .forEach(([x,s,a,sp,ph]) => drawPlant(c3,x,s,a,sp,ph,0.72,null));
+
+    // Mid seagrass — full width
+    [[0.02,0.17,8,1.0,0.0],[0.08,0.16,7,0.9,0.6],[0.14,0.18,9,1.1,1.3],[0.20,0.15,7,0.8,2.1],
+     [0.26,0.17,8,1.0,0.4],[0.32,0.16,6,0.9,3.0],[0.38,0.18,8,1.1,1.7],[0.44,0.15,7,0.8,0.9],
+     [0.50,0.17,9,1.0,2.4],[0.56,0.16,7,0.9,1.1],[0.62,0.18,8,1.1,0.2],[0.68,0.15,6,0.8,2.8],
+     [0.74,0.17,8,1.0,1.5],[0.80,0.16,7,0.9,0.7],[0.86,0.18,9,1.1,2.2],[0.92,0.15,7,0.8,1.0],[0.97,0.16,8,1.0,3.1]]
+        .forEach(([x,s,a,sp,ph]) => drawPlant(sg,x,s,a,sp,ph,0.58,null));
+
+    // Mid seaweed — source-over
+    [[0.04,0.24,11,1.0,0.3],[0.11,0.22,10,0.9,1.1],[0.18,0.25,12,1.1,2.4],[0.25,0.23,10,0.8,0.7],
+     [0.33,0.24,11,1.0,1.8],[0.41,0.22,10,0.9,3.1],[0.49,0.25,12,1.1,0.5],[0.57,0.23,10,0.8,2.0],
+     [0.65,0.24,11,1.0,1.3],[0.73,0.22,10,0.9,0.8],[0.81,0.25,12,1.1,2.7],[0.89,0.23,10,0.8,1.6],[0.96,0.24,11,1.0,0.4]]
+        .forEach(([x,s,a,sp,ph]) => drawPlant(sw,x,s,a,sp,ph,0.85,'source-over'));
+
+    // Front plants are drawn in a separate second pass (game._drawSeaFloorFront),
+    // called AFTER drawPlayerFish so Fin appears behind foreground vegetation.
+    game._drawSeaFloorFront = () => {
+        // Front seagrass — larger
+        [[0.00,0.21,11,1.2,0.2],[0.10,0.20,10,1.1,1.0],[0.22,0.22,12,1.3,2.1],[0.34,0.19,9,1.0,0.7],
+         [0.46,0.21,11,1.2,1.8],[0.58,0.20,10,1.1,3.0],[0.70,0.22,12,1.3,0.4],[0.82,0.19,9,1.0,1.6],[0.94,0.21,11,1.2,2.5]]
+            .forEach(([x,s,a,sp,ph]) => drawPlant(sg,x,s,a,sp,ph,0.90,null));
+
+        // Front corals
+        [[0.06,0.40,3,0.22,0.9],[0.30,0.38,2,0.18,2.0],[0.55,0.42,3,0.24,1.1],[0.80,0.39,2,0.20,0.3]]
+            .forEach(([x,s,a,sp,ph]) => drawPlant(c3,x,s,a,sp,ph,0.90,null));
+    };
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Ambient rising bubbles  (ported from MenuSystem._drawBubbles)
+//  Drawn in SCREEN space so they always fill the viewport.
+// ────────────────────────────────────────────────────────────────
+
+function drawAmbientBubbles(game, ctx, W, H) {
+    if (!game.ambientBubbles) return;
+    const e = game.elapsed;
+
+    for (const b of game.ambientBubbles) {
+        // Convert world position to screen — bubbles rise in world Y
+        // but we just map them: their world x/y tracks directly; the
+        // viewport offset is subtracted so they sit in-world naturally.
+        const sx = b.x - game.cam.x;
+        const sy = b.y - game.cam.y;
+
+        // Skip if off-screen
+        if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
+
+        const r = b.r * (1 + Math.sin(e * 2 + b.ph) * 0.06);
+        ctx.save();
+        ctx.globalAlpha = b.a;
+        ctx.strokeStyle = `rgba(130,220,255,${(b.a * 1.9).toFixed(3)})`;
+        ctx.lineWidth = 0.85;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+        // Inner highlight dot
+        ctx.globalAlpha = b.a * 0.75;
+        ctx.fillStyle = 'rgba(210,245,255,0.65)';
+        ctx.beginPath(); ctx.arc(sx - r * 0.3, sy - r * 0.3, r * 0.27, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Ambient fish schools — ghostly silhouette clusters (menu style)
+//  Uses game.decoFishShadow image if loaded, falls back to ellipse.
+// ────────────────────────────────────────────────────────────────
+
+function drawAmbientSchools(game, ctx) {
+    if (!game.ambientSchools) return;
+    const e   = game.elapsed;
+    const img = game.decoFishShadow;
+    const imgReady = img && img.complete && img.naturalWidth > 0;
+
+    for (const s of game.ambientSchools) {
+        for (const f of s.fish) {
+            const wx = s.cx + f.ox + Math.sin(e * f.wobbleSpd + f.wobble) * 4;
+            const wy = s.cy + f.oy + Math.cos(e * f.wobbleSpd * 0.7 + f.wobble) * 3;
+
+            const sc = worldToScreen(game, wx, wy);
+
+            ctx.save();
+            ctx.globalAlpha = s.alpha;
+            ctx.translate(sc.x, sc.y);
+            if (s.dir === -1) ctx.scale(-1, 1);
+
+            const sz = f.sz * 2.2;
+            if (imgReady) {
+                const aspect = img.naturalWidth / img.naturalHeight;
+                const dw = sz * aspect, dh = sz;
+                ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+            } else {
+                // Fallback shape
+                ctx.fillStyle = 'rgba(0,15,50,1)';
+                ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.55, sz * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(sz * 0.5, 0); ctx.lineTo(sz * 0.85, -sz * 0.28); ctx.lineTo(sz * 0.85, sz * 0.28); ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Ambient fish silhouettes — lone drifting shadows (menu style)
+// ────────────────────────────────────────────────────────────────
+
+function drawAmbientSilhouettes(game, ctx) {
+    if (!game.ambientSilhouettes) return;
+    for (const f of game.ambientSilhouettes) {
+        const sc = worldToScreen(game, f.x, f.y);
+        ctx.save();
+        ctx.globalAlpha = f.a;
+        ctx.fillStyle = 'rgba(0,55,115,0.7)';
+        ctx.translate(sc.x, sc.y);
+        if (f.dir === -1) ctx.scale(-1, 1);
+        ctx.beginPath(); ctx.ellipse(0, 0, f.sz, f.sz * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(f.sz, 0); ctx.lineTo(f.sz + f.sz * 0.5, -f.sz * 0.32); ctx.lineTo(f.sz + f.sz * 0.5, f.sz * 0.32); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -143,30 +354,48 @@ function drawDecorations(game, ctx) {
         let sway  = 0;
 
         switch (d.type) {
+            case 'rock': {
+                // Full-width rock backdrop — drawn at world floor, scrolls with camera
+                const ri = game.rockImgs && game.rockImgs[d.rockIndex];
+                if (!ri || !ri.complete || ri.naturalWidth === 0) continue;
+                const s  = worldToScreen(game, d.x, d.y);
+                // Scale image to span ~55% of viewport width, anchored bottom-centre
+                const drawW = Math.round(game.canvas.width / game.dpr * 0.55);
+                const drawH = Math.round(ri.naturalHeight * (drawW / ri.naturalWidth));
+                ctx.drawImage(ri, s.x - drawW / 2, s.y - drawH, drawW, drawH);
+                continue;
+            }
+            case 'tall_rock':
+                img = game.decoTallRock;
+                break;
+            case 'huge_rock':
+                img = game.decoHugeRock;
+                break;
+            case 'stone':
+                img = game.decoStone;
+                break;
+            case 'stone1':
+                img = game.decoStone1;
+                break;
+            case 'stone2':
+                img = game.decoStone2;
+                break;
             case 'boat':
                 img = game.decoBoat;
                 bob = Math.sin(e * 0.6 + 1.2) * 4;
                 break;
             case 'coral1':
                 img  = game.decoCoral1;
-                sway = Math.sin(e * 0.9  + d.x * 0.007) * 0.045
-                     + Math.sin(e * 1.7  + d.x * 0.013) * 0.018;
+                // sway amplitude in pixels (same scale as menu's drawPlant swayAmp)
+                sway = (Math.sin(e * 0.9  + d.x * 0.007) * 3.5
+                      + Math.sin(e * 1.7  + d.x * 0.013) * 1.5) * 0.35;
                 break;
             case 'coral3':
-                img  = game.decoCoral3;
-                sway = Math.sin(e * 0.75 + d.x * 0.009) * 0.038
-                     + Math.sin(e * 1.5  + d.x * 0.017) * 0.015;
-                break;
             case 'seagrass':
-                img  = game.decoSeagrass;
-                sway = Math.sin(e * 1.2  + d.x * 0.011) * 0.10
-                     + Math.sin(e * 2.1  + d.x * 0.019) * 0.035;
-                break;
             case 'seaweed':
-                img  = game.decoSeaweed;
-                sway = Math.sin(e * 0.95 + d.x * 0.010) * 0.13
-                     + Math.sin(e * 1.85 + d.x * 0.018) * 0.045;
-                break;
+                // Drawn by drawGameSeaFloor() using the menu-style drawPlant()
+                // system (xFrac-based, full-width, shear sway). Skip here.
+                continue;
             case 'fishshadow':
     img   = game.decoFishShadow;
     alpha = 0.22 + Math.sin(e * 0.4) * 0.06;
@@ -188,21 +417,34 @@ function drawDecorations(game, ctx) {
         ctx.save();
         ctx.globalAlpha = alpha;
 
+        // Rock scatter sprites have solid black backgrounds — screen blend
+        // makes black invisible while keeping the teal rock colours intact.
+        const isRockSprite = d.type === 'tall_rock' || d.type === 'huge_rock'
+                          || d.type === 'stone'     || d.type === 'stone1'
+                          || d.type === 'stone2';
+        if (isRockSprite) ctx.globalCompositeOperation = 'screen';
+
         if (sway !== 0) {
-            const baseX = s.x;
-            const baseY = s.y + h / 2;
-            ctx.translate(baseX, baseY);
-            ctx.rotate(sway);
-            ctx.drawImage(img, -w / 2, -h, w, h);
+            // Shear-transform sway anchored at the base of the sprite —
+            // identical to menu.js _drawSeaFloor / drawGameSeaFloor drawPlant().
+            // sway is a pixel offset at the top; shear = sway / ih.
+            const baseX = s.x - w / 2;
+            const baseY = s.y - h;   // d.y is floor anchor; draw upward
+            const shear = sway / h;
+            ctx.transform(1, 0, shear, 1, baseX - shear * (baseY + h), baseY);
+            ctx.drawImage(img, 0, 0, w, h);
         } else {
     if (d.type === 'fishshadow' && d.vx > 0) {
-        // Flip horizontally for rightward travel
-        ctx.translate(s.x, s.y - h / 2 + bob);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, -w / 2, 0, w, h);
-    } else {
-        ctx.drawImage(img, s.x - w / 2, s.y - h / 2 + bob, w, h);
-    }
+                // Flip horizontally for rightward travel
+                ctx.translate(s.x, s.y - h / 2 + bob);
+                ctx.scale(-1, 1);
+                ctx.drawImage(img, -w / 2, 0, w, h);
+            } else if (isRockSprite) {
+                // Floor rocks: anchor base of sprite to floor Y (not centre)
+                ctx.drawImage(img, s.x - w / 2, s.y - h, w, h);
+            } else {
+                ctx.drawImage(img, s.x - w / 2, s.y - h / 2 + bob, w, h);
+            }
 }
         ctx.restore();
     }
@@ -647,7 +889,19 @@ function drawPlayerFish(game, ctx) {
 
     if (flicker) return;
 
+    // ── Floor-proximity fade — Fin dims when swimming into the coral/plant zone ──
+    // The front plants start at ~85% of world height; full fade-in at 93%.
+    const floorAlpha = (() => {
+        const yFrac = game.fishY / game.world.h;  // 0 = top, 1 = floor
+        const fadeStart = 0.80;   // begin fading at 80% depth
+        const fadeEnd   = 0.93;   // fully hidden at 93% (buried in plants)
+        if (yFrac <= fadeStart) return 1.0;
+        if (yFrac >= fadeEnd)   return 0.18;
+        return 1.0 - (yFrac - fadeStart) / (fadeEnd - fadeStart) * 0.82;
+    })();
+
     ctx.save();
+    ctx.globalAlpha = floorAlpha;
     ctx.translate(s.x, s.y + bob);
 
     if (hasSheet) {
@@ -752,7 +1006,7 @@ function drawFloatingTexts(game, ctx) {
         if (!isOnScreen(game, ft.wx, ft.wy, 70)) continue;
         const s     = worldToScreen(game, ft.wx, ft.wy);
         const alpha = Math.max(0, ft.life / ft.maxLife);
-        const size  = ft.text.length > 20 ? 16 : 22;
+        const size  = ft.text.length > 20 ? 20 : 28;
         ctx.globalAlpha = alpha;
         ctx.font        = `bold ${size}px 'Bangers', cursive`;
         ctx.strokeStyle = '#000'; ctx.lineWidth = 1.8;
@@ -781,7 +1035,7 @@ function drawHUD(game, ctx, W, H) {
         ctx.restore();
     };
 
-    hudText(`SCORE: ${game.score}`,                          40, 40,  '#ffd060', '#ffd060', 24);
+    hudText(`SCORE: ${game.score}`,                          40, 40,  '#ffd060', '#f0dbaa', 40);
     hudText(`BEST: ${game.highScore}`,                       40, 66,  '#ffaa40', '#ffaa40', 18);
     hudText(`STAGE ${game.stage} / ${game.MAX_STAGE}`,       40, 90,  '#ffffff', '#ffffff', 18);
 
@@ -849,7 +1103,7 @@ function drawHUD(game, ctx, W, H) {
     ctx.save();
     ctx.shadowColor = game.hasPearlPower ? '#00c8ff' : 'transparent'; ctx.shadowBlur = 6;
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    ctx.font = "bold 15px 'Bangers', cursive"; ctx.textAlign = 'left';
+    ctx.font = "bold 20px 'Bangers', cursive"; ctx.textAlign = 'left';
     ctx.strokeText(pearlTxt, 40, 168); ctx.fillStyle = pearlCol; ctx.fillText(pearlTxt, 40, 168);
     ctx.restore();
 
@@ -857,7 +1111,7 @@ function drawHUD(game, ctx, W, H) {
     const hasBoss = (game.boss && !game.bossDefeated) || (game.kingCrab && !game.kingCrab.defeated);
     let remTxt, remCol;
     if (remEnemies > 0) {
-        remTxt = `💀 KILL ${remEnemies} ENEM${remEnemies === 1 ? 'Y' : 'IES'} TO ADVANCE`;
+        remTxt = `💀 ${remEnemies} ENEM${remEnemies === 1 ? 'Y' : 'IES'} LEFT`;
         remCol = '#ff8080';
     } else if (hasBoss) {
         remTxt = '🔥 DEFEAT THE BOSS!';
@@ -868,7 +1122,7 @@ function drawHUD(game, ctx, W, H) {
     }
     ctx.save();
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    ctx.font = "bold 15px 'Bangers', cursive"; ctx.textAlign = 'left';
+    ctx.font = "bold 20px 'Bangers', cursive"; ctx.textAlign = 'left';
     ctx.strokeText(remTxt, 40, 190); ctx.fillStyle = remCol; ctx.fillText(remTxt, 40, 190);
     ctx.restore();
 

@@ -20,6 +20,7 @@ function initInput(game) {
         const k = e.key.toLowerCase();
         if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
         if (e.key === 'Escape') { game._togglePause(); return; }
+        if (k === 'r') { resetCameraView(game); return; }
         if (e.key === ' ' && !game.keys[' ']) game.fishAttacking = true;
         game.keys[k] = true;
     });

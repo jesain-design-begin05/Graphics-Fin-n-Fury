@@ -146,6 +146,7 @@ class GameSystem {
         this.canvas.style.height = vH + 'px';
 
         initCamera(this);
+        this.camZoom = 1.0;  // ensure no leftover zoom from overview or previous stage
 
         // Player start position — apply mapCircleYOffset (number, not function)
         this.fishX = this.world.w / 2;
@@ -158,6 +159,9 @@ class GameSystem {
         this.projectiles    = [];
         this.floatingTexts  = [];
         this.bubbleTexts    = [];
+        this.ambientBubbles     = [];
+        this.ambientSchools     = [];
+        this.ambientSilhouettes = [];
         this.stageClear      = false;
         this.stageClearTimer = 0;
         this.stageClearInfo  = null;
@@ -242,6 +246,7 @@ class GameSystem {
             const eased = t * t;
             this.fishY = this.respawnStartY + (this.respawnTargetY - this.respawnStartY) * eased;
             updateCamera(this, dt);
+            updateBgPosition(this);
             if (this.respawnTimer >= RESPAWN_FALL_DURATION) {
                 this.isRespawning   = false;
                 this.fishY          = this.respawnTargetY;
@@ -279,6 +284,7 @@ class GameSystem {
         this.fishY = Math.max(marginY, Math.min(this.world.h - marginY, this.fishY));
 
         updateCamera(this, dt);
+        updateBgPosition(this);
         this._handleAttack();
         this._updateProjectiles(dt);
 
@@ -293,6 +299,7 @@ class GameSystem {
         updateEnemies(this, dt);
         updateClams(this, dt);
         updateMantaRay(this, dt);
+        updateAmbient(this, dt);
         if (this.boss && !this.bossDefeated) updateBoss(this, dt);
         checkKingCrabTrigger(this);
         if (this.kingCrab && !this.kingCrab.defeated) updateKingCrab(this, dt);

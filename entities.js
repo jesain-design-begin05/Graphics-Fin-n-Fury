@@ -46,13 +46,10 @@ function spawnStageEntities(game) {
     game.bossDefeated   = false;
 
     // ── Manta ray — slow background glider, top/mid area ─────
-    // Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
-    // Always moves LEFT so the sprite naturally faces forward (no flip needed).
-    // Wraps fully offscreen before reappearing on the right.
     game.mantaRay = {
-        x:          game.world.w + 300,   // start offscreen right, glides in from right
+        x:          game.world.w + 300,
         y:          H * 0.10 + Math.random() * H * 0.20,
-        vx:         -MANTA_SPEED,         // always moving left — sprite faces left naturally
+        vx:         -MANTA_SPEED,
         bobOffset:  Math.random() * Math.PI * 2,
         frameCol:   0,
         frameRow:   0,
@@ -76,32 +73,63 @@ function spawnStageEntities(game) {
     for (let i = 0; i < (def.furyfish || 0); i++) {
         game.bgFuryfish.push(mkDef('furyfish', 0.05, 0.90, { isAttacking: false, chaseSpeed: 0, hp: FURYFISH_HP, maxHp: FURYFISH_HP, hitFlash: 0 }));
     }
-    for (let i = 0; i < (def.enemies || 0); i++) {
-        game.bgEnemies.push(mkDef('enemy', 0.08, 0.88, { isAttacking: false, hp: ENEMY_HP, maxHp: ENEMY_HP, hitFlash: 0 }));
+
+    {
+        const stage        = game.stage;
+        const giantCount   = Math.floor(stage / 3);
+        const totalSlots   = stage;
+        const regularCount = Math.max(0, totalSlots - giantCount * 2);
+
+        for (let i = 0; i < regularCount; i++) {
+            game.bgEnemies.push(mkDef('enemy', 0.08, 0.88, {
+                isAttacking: false, hp: ENEMY_HP, maxHp: ENEMY_HP, hitFlash: 0,
+            }));
+        }
+        for (let i = 0; i < giantCount; i++) {
+            game.bgEnemies.push(mkDef('enemy', 0.06, 0.86, {
+                isAttacking: false, hp: ENEMY_HP * 2, maxHp: ENEMY_HP * 2, hitFlash: 0,
+                isGiant: true,
+            }));
+        }
     }
 
-    // Track original spawn counts for respawning
-    game.maxFuryfish = game.bgFuryfish.length;
-    game.maxEnemies  = game.bgEnemies.length;
+    game.maxFuryfish     = game.bgFuryfish.length;
+    game.maxEnemies      = game.bgEnemies.length;
+
+    game.maxTinyfish     = game.bgTinyfish.length;
+    game.maxClownfish    = game.bgClownfish.length;
+    game.maxGoldfish     = game.bgGoldfish.length;
+    game.maxSecondfish   = game.bgSecondfish.length;
+    game.maxTertiaryfish = game.bgTertiaryfish.length;
+    game.maxTunafish     = game.bgTunafish.length;
+
+    game.edibleRespawnTimers = {
+        tinyfish:     0,
+        clownfish:    0,
+        goldfish:     0,
+        secondfish:   0,
+        tertiaryfish: 0,
+        tunafish:     0,
+    };
 
     for (let i = 0; i < 2; i++) {
         game.clams.push({
             x: W * 0.12 + Math.random() * W * 0.76,
-            y: H * 0.92 + Math.random() * H * 0.03,  // pinned to floor
+            y: H * 0.92 + Math.random() * H * 0.03,
             hasPearl: true, openAnim: 0, pearlCollected: false,
-            respawnTimer: 0,   // counts down after pearl is taken
+            respawnTimer: 0,
         });
     }
 
     spawnDecorations(game);
+    spawnAmbientBubbles(game);
+    spawnAmbientSchools(game);
+    spawnAmbientSilhouettes(game);
 
     if (def.hasBoss) {
-        // Stage 3 uses the King Crab — it appears ONLY after all edible fish are gone.
-        // Other boss stages use the legacy furyfish-sheet boss that spawns immediately.
         if (game.stage === 3) {
-            // King Crab will be created by triggerKingCrab() once the fish are cleared.
-            game.boss         = null;
-            game.kingCrab     = null;
+            game.boss           = null;
+            game.kingCrab       = null;
             game.kingCrabActive = false;
         } else {
             game.boss = {
@@ -130,21 +158,119 @@ function spawnParticles(game) {
 }
 
 // ────────────────────────────────────────────────────────────────
+//  Ambient rising bubbles
+// ────────────────────────────────────────────────────────────────
+
+function spawnAmbientBubbles(game) {
+    const W = game.world.w;
+    const H = game.world.h;
+    game.ambientBubbles = Array.from({ length: 75 }, () => ({
+        x:  Math.random() * W,
+        y:  H * 0.3 + Math.random() * H * 0.7,
+        r:  1.2 + Math.random() * 5.5,
+        vy: 0.4 + Math.random() * 1.1,
+        dx: (Math.random() - 0.5) * 0.3,
+        a:  0.08 + Math.random() * 0.28,
+        ph: Math.random() * Math.PI * 2,
+    }));
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Ambient fish schools
+// ────────────────────────────────────────────────────────────────
+
+function _mkGameSchool(game) {
+    const W = game.world.w;
+    const H = game.world.h;
+    const dir   = Math.random() > 0.5 ? 1 : -1;
+    const count = 18 + Math.floor(Math.random() * 30);
+    const cx    = dir === 1 ? -200 : W + 200;
+    const cy    = H * 0.08 + Math.random() * H * 0.78;
+    const spd   = 18 + Math.random() * 28;
+    const spread = 90 + Math.random() * 120;
+    const fish  = Array.from({ length: count }, () => ({
+        ox: (Math.random() - 0.5) * spread,
+        oy: (Math.random() - 0.5) * spread * 0.45,
+        sz: 6 + Math.random() * 18,
+        wobble:    Math.random() * Math.PI * 2,
+        wobbleSpd: 0.8 + Math.random() * 0.6,
+    }));
+    return { cx, cy, dir, spd, fish, alpha: 0.06 + Math.random() * 0.12 };
+}
+
+function spawnAmbientSchools(game) {
+    game.ambientSchools = Array.from({ length: 5 }, () => _mkGameSchool(game));
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Ambient fish silhouettes
+// ────────────────────────────────────────────────────────────────
+
+function _mkGameSilh(game) {
+    const W = game.world.w;
+    const H = game.world.h;
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    return {
+        x:   dir === 1 ? -100 : W + 100,
+        y:   H * 0.1 + Math.random() * H * 0.8,
+        sz:  10 + Math.random() * 28,
+        vx:  (25 + Math.random() * 55) * dir,
+        a:   0.03 + Math.random() * 0.07,
+        dir,
+    };
+}
+
+function spawnAmbientSilhouettes(game) {
+    game.ambientSilhouettes = Array.from({ length: 7 }, () => _mkGameSilh(game));
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Per-frame update for all three ambient systems
+// ────────────────────────────────────────────────────────────────
+
+function updateAmbient(game, dt) {
+    const W = game.world.w;
+    const H = game.world.h;
+    const e = game.elapsed;
+
+    if (game.ambientBubbles) {
+        for (const b of game.ambientBubbles) {
+            b.y -= b.vy;
+            b.x += b.dx + Math.sin(e * 1.2 + b.ph) * 0.18;
+            if (b.y < -12) { b.y = H + 8; b.x = Math.random() * W; }
+        }
+    }
+
+    if (game.ambientSchools) {
+        for (let i = 0; i < game.ambientSchools.length; i++) {
+            const s = game.ambientSchools[i];
+            s.cx += s.spd * s.dir * dt;
+            const gone = s.dir === 1 ? s.cx > W + 300 : s.cx < -300;
+            if (gone) game.ambientSchools[i] = _mkGameSchool(game);
+        }
+    }
+
+    if (game.ambientSilhouettes) {
+        for (let i = 0; i < game.ambientSilhouettes.length; i++) {
+            const f = game.ambientSilhouettes[i];
+            f.x += f.vx * dt;
+            const gone = (f.dir === 1 && f.x > W + 120) || (f.dir === -1 && f.x < -120);
+            if (gone) game.ambientSilhouettes[i] = _mkGameSilh(game);
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
 //  Fish world-edge wrap
-//  Fish exit the right edge of the WORLD → reappear at world left
-//  Fish exit the left  edge of the WORLD → reappear at world right
 // ────────────────────────────────────────────────────────────────
 
 function _screenWrapX(f, game, margin = 60) {
     const W = game.world.w;
-
     if (f.vx > 0 && f.x > W - margin) {
         f.x = margin + 10;
     } else if (f.vx < 0 && f.x < margin) {
         f.x = W - margin - 10;
     }
-
-    // Clamp Y to world bounds
     f.y = Math.max(game.world.h * 0.03, Math.min(game.world.h * 0.97, f.y));
 }
 
@@ -164,14 +290,71 @@ function updateEdibleFish(game, dt) {
     for (const f of game.bgSecondfish)   tick(f);
     for (const f of game.bgTertiaryfish) tick(f);
     for (const f of game.bgTunafish)     tick(f);
+
+    const EDIBLE_RESPAWN_DELAY = 4.0;
+    const mkDef = (type, yMin, yMax) => makeFish(
+        game.world.w, game.world.h, yMin, yMax,
+        FISH_DEF[type].speedMin, FISH_DEF[type].speedMax,
+        { type }
+    );
+
+    const t = game.edibleRespawnTimers;
+    if (!t) return;
+
+    const respawnOne = (arr, maxKey, type, yMin, yMax, timerKey) => {
+        if (arr.length >= game[maxKey]) { t[timerKey] = 0; return; }
+        t[timerKey] += dt;
+        if (t[timerKey] >= EDIBLE_RESPAWN_DELAY) {
+            arr.push(mkDef(type, yMin, yMax));
+            t[timerKey] = 0;
+        }
+    };
+
+    respawnOne(game.bgTinyfish,     'maxTinyfish',     'tinyfish',   0.05, 0.90, 'tinyfish');
+    respawnOne(game.bgClownfish,    'maxClownfish',    'clownfish',  0.04, 0.88, 'clownfish');
+    respawnOne(game.bgGoldfish,     'maxGoldfish',     'goldfish',   0.06, 0.86, 'goldfish');
+    respawnOne(game.bgSecondfish,   'maxSecondfish',   'secondfish', 0.08, 0.84, 'secondfish');
+    respawnOne(game.bgTertiaryfish, 'maxTertiaryfish', 'tertiary',   0.10, 0.82, 'tertiaryfish');
+    respawnOne(game.bgTunafish,     'maxTunafish',     'tunafish',   0.12, 0.78, 'tunafish');
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Line-of-sight / field-of-view check
+//  FOV_HALF_DEG = 100° — wide forward cone; behind the enemy = invisible
+// ────────────────────────────────────────────────────────────────
+
+const FOV_HALF_RAD = (100 * Math.PI) / 180;
+
+/**
+ * Returns true if Fin is inside the enemy's forward FOV cone.
+ */
+function _inFOV(f, targetX, targetY) {
+    const dx = targetX - f.x;
+    const dy = targetY - f.y;
+    const toFinAngle  = Math.atan2(dy, dx);
+    const facingAngle = f.vx >= 0 ? 0 : Math.PI;
+    let delta = Math.abs(toFinAngle - facingAngle);
+    if (delta > Math.PI) delta = 2 * Math.PI - delta;
+    return delta <= FOV_HALF_RAD;
+}
+
+/**
+ * Returns true when Fin is deep enough in the seafloor plant zone
+ * (corals, seagrass, seaweed) to be hidden from enemies.
+ * 82%+ world depth = inside the plant canopy = hidden.
+ */
+function _finIsHidden(game) {
+    const yFrac = game.fishY / game.world.h;
+    return yFrac >= 0.82;
 }
 
 function updateFuryfish(game, dt) {
     for (const f of game.bgFuryfish) {
         if (f._warnTimer > 0) f._warnTimer -= dt;
         if (f.hitFlash > 0)   f.hitFlash   -= dt;
-        const onScreen = isOnScreen(game, f.x, f.y, 80);
-        if (onScreen) {
+        const onScreen   = isOnScreen(game, f.x, f.y, 80);
+        const canSeesFin = onScreen && _inFOV(f, game.fishX, game.fishY) && !_finIsHidden(game);
+        if (canSeesFin) {
             f.isAttacking = true;
             const dx   = game.fishX - f.x;
             const dy   = game.fishY - f.y;
@@ -182,6 +365,7 @@ function updateFuryfish(game, dt) {
             f.vx = Math.cos(ang) * spd;
             f.vy = Math.sin(ang) * spd;
         } else {
+            // Fin is off-screen, behind furyfish, or hidden in plants — patrol only
             f.isAttacking = false;
             f.vy *= 0.96;
             if (Math.abs(f.vx) < FURY_PATROL_SPEED) f.vx = (f.vx >= 0 ? 1 : -1) * FURY_PATROL_SPEED;
@@ -189,38 +373,15 @@ function updateFuryfish(game, dt) {
         f.x += f.vx * dt; f.y += f.vy * dt;
         _screenWrapX(f, game);
     }
-
-    // Respawn logic
-    if (game.bgFuryfish.length < game.maxFuryfish) {
-        game.furyfishRespawnTimer += dt;
-        if (game.furyfishRespawnTimer >= FURYFISH_RESPAWN_DELAY) {
-            // Respawn a furyfish
-            const furyfish = makeFish(
-                game.world.w, game.world.h, 0.05, 0.90,
-                FISH_DEF.furyfish.speedMin, FISH_DEF.furyfish.speedMax,
-                { 
-                    type: 'furyfish',
-                    isAttacking: false, 
-                    chaseSpeed: 0, 
-                    hp: FURYFISH_HP, 
-                    maxHp: FURYFISH_HP, 
-                    hitFlash: 0 
-                }
-            );
-            game.bgFuryfish.push(furyfish);
-            game.furyfishRespawnTimer = 0;
-        }
-    } else {
-        game.furyfishRespawnTimer = 0; // reset if at max
-    }
 }
 
 function updateEnemies(game, dt) {
     for (const f of game.bgEnemies) {
         if (f._warnTimer > 0) f._warnTimer -= dt;
         if (f.hitFlash > 0)   f.hitFlash   -= dt;
-        const onScreen = isOnScreen(game, f.x, f.y, 80);
-        if (onScreen) {
+        const onScreen   = isOnScreen(game, f.x, f.y, 80);
+        const canSeesFin = onScreen && _inFOV(f, game.fishX, game.fishY) && !_finIsHidden(game);
+        if (canSeesFin) {
             f.isAttacking = true;
             const dx  = game.fishX - f.x;
             const dy  = game.fishY - f.y;
@@ -228,35 +389,13 @@ function updateEnemies(game, dt) {
             f.vx = Math.cos(ang) * ENEMY_CHASE_SPEED;
             f.vy = Math.sin(ang) * ENEMY_CHASE_SPEED;
         } else {
+            // Fin is off-screen, behind enemy, or hidden in plants — patrol only
             f.isAttacking = false;
             f.vy *= 0.96;
             if (Math.abs(f.vx) < ENEMY_PATROL_SPEED) f.vx = (f.vx >= 0 ? 1 : -1) * ENEMY_PATROL_SPEED;
         }
         f.x += f.vx * dt; f.y += f.vy * dt;
         _screenWrapX(f, game);
-    }
-
-    // Respawn logic
-    if (game.bgEnemies.length < game.maxEnemies) {
-        game.enemyRespawnTimer += dt;
-        if (game.enemyRespawnTimer >= ENEMY_RESPAWN_DELAY) {
-            // Respawn an enemy
-            const enemy = makeFish(
-                game.world.w, game.world.h, 0.08, 0.88,
-                FISH_DEF.enemy.speedMin, FISH_DEF.enemy.speedMax,
-                { 
-                    type: 'enemy',
-                    isAttacking: false, 
-                    hp: ENEMY_HP, 
-                    maxHp: ENEMY_HP, 
-                    hitFlash: 0 
-                }
-            );
-            game.bgEnemies.push(enemy);
-            game.enemyRespawnTimer = 0;
-        }
-    } else {
-        game.enemyRespawnTimer = 0; // reset if at max
     }
 }
 
@@ -267,8 +406,15 @@ function updateBoss(game, dt) {
     if (b.hitFlash > 0) b.hitFlash -= dt;
     b.chargeTimer += dt;
     if (!b.isCharging) {
-        const dx   = game.fishX - b.x;
-        const dy   = game.fishY - b.y;
+        // Boss only homes in on Fin if he isn't hidden in the plant canopy
+        if (!_finIsHidden(game)) {
+            b._lastKnownX = game.fishX;
+            b._lastKnownY = game.fishY;
+        }
+        const tx   = b._lastKnownX ?? game.fishX;
+        const ty   = b._lastKnownY ?? game.fishY;
+        const dx   = tx - b.x;
+        const dy   = ty - b.y;
         const dist = Math.hypot(dx, dy);
         b.vx += (dx / dist) * 50 * dt;
         b.vy += (dy / dist) * 50 * dt;
@@ -296,16 +442,13 @@ function updateBoss(game, dt) {
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Manta ray — slow gliding background creature, top/mid water
-//  Sheet: manta.png — 4 cols × 2 rows = 8 frames, faces LEFT naturally
+//  Manta ray
 // ────────────────────────────────────────────────────────────────
 
 function updateMantaRay(game, dt) {
     const m = game.mantaRay;
     if (!m) return;
 
-    // Slow wing beat — one full flap cycle every ~1.8s (4 frames × 0.45s each)
-    // Lock to row 0 only — row 1 caused the doubled-flap bug
     m.frameTimer += dt;
     if (m.frameTimer >= 0.45) {
         m.frameTimer = 0;
@@ -313,31 +456,24 @@ function updateMantaRay(game, dt) {
         m.frameRow   = 0;
     }
 
-    // Always moving left — sprite faces left naturally so no flip needed
     m.vx = -MANTA_SPEED;
     m.x += m.vx * dt;
 
-    // Wrap fully offscreen: exit left edge → reenter from far right (and vice versa)
     const img   = game.mantaRayImg;
     const halfW = img && img.complete && img.naturalWidth > 0
-        ? (img.naturalWidth / m.COLS) * 5 / 2   // scale=5 matches renderer
+        ? (img.naturalWidth / m.COLS) * 5 / 2
         : 300;
     const worldW = game.world.w;
 
     if (m.x < -halfW) {
-        // Finished crossing left edge — reenter from right, pick a new Y
         m.x = worldW + halfW;
         m.y = game.world.h * 0.08 + Math.random() * game.world.h * 0.22;
     }
 }
 
-/**
- * Call this every frame from the main game loop (game._animate / updateGame).
- * Checks if Stage 3 edible fish are all gone and fires the King Crab entrance.
- */
 function checkKingCrabTrigger(game) {
     if (game.stage !== 3) return;
-    if (game.kingCrabActive) return;           // already triggered
+    if (game.kingCrabActive) return;
     if (game.isEaten || game.isRespawning) return;
 
     const edibleCount = (game.bgTinyfish     ? game.bgTinyfish.length     : 0)
@@ -347,37 +483,26 @@ function checkKingCrabTrigger(game) {
                       + (game.bgTertiaryfish ? game.bgTertiaryfish.length : 0)
                       + (game.bgTunafish     ? game.bgTunafish.length     : 0);
 
-    if (edibleCount === 0) {
-        triggerKingCrab(game);
-    }
+    if (edibleCount === 0) triggerKingCrab(game);
 }
 
 // ────────────────────────────────────────────────────────────────
 //  King Crab — Stage 3 boss
-//  Sprite sheet: kingcrab.png — 4 cols × 4 rows
-//    row 0 = idle/walk  row 1 = claw-swipe  row 2 = fire-burst  row 3 = hurt/death
-//  Spawned only AFTER all edible fish are eaten (countEdible === 0).
-//  Has its own HP system; hits Fin for HP damage (not instant death).
 // ────────────────────────────────────────────────────────────────
 
-const KC_COLS         = 4;
-const KC_ROWS         = 4;
-const KC_ROW_WALK     = 0;
-const KC_ROW_CLAW     = 1;
-const KC_ROW_FIRE     = 2;
-const KC_ROW_HURT     = 3;
+const KC_COLS     = 4;
+const KC_ROWS     = 4;
+const KC_ROW_WALK = 0;
+const KC_ROW_CLAW = 1;
+const KC_ROW_FIRE = 2;
+const KC_ROW_HURT = 3;
 
-/**
- * Called once when all stage-3 fish are cleared.
- * Resets camera zoom, positions the crab, and initialises Fin HP.
- */
 function triggerKingCrab(game) {
     if (game.kingCrabActive) return;
     game.kingCrabActive = true;
 
-    // Reset camera zoom to default so the full arena is visible
-    game.camZoom       = 1.0;
-    game._targetZoom   = 1.0;
+    game.camZoom     = 1.0;
+    game._targetZoom = 1.0;
 
     const W = game.world.w;
     const H = game.world.h;
@@ -394,18 +519,16 @@ function triggerKingCrab(game) {
         frameRow:     KC_ROW_WALK,
         frameTimer:   0,
         hitFlash:     0,
-        clawCooldown: 0,        // time until next claw attack
-        clawActive:   false,    // currently in claw-swipe animation
+        clawCooldown: 0,
+        clawActive:   false,
         clawTimer:    0,
         bobOffset:    Math.random() * Math.PI * 2,
         defeated:     false,
     };
 
-    // Initialise Fin HP for the boss fight
     game.finHp    = FIN_MAX_HP;
     game.finMaxHp = FIN_MAX_HP;
 
-    // Show dramatic intro text
     game._spawnFloatingText(W / 2, H / 2 - 100, '👑 KING CRAB APPEARS!', '#ff4040');
     game._spawnFloatingText(W / 2, H / 2 - 60,  'Shoot or outmanoeuvre it!', '#ffcc40');
 }
@@ -417,13 +540,9 @@ function updateKingCrab(game, dt) {
     const W = game.world.w;
     const H = game.world.h;
 
-    // ── Hit flash decay ─────────────────────────────────────────
     if (kc.hitFlash > 0) kc.hitFlash -= dt;
-
-    // ── Claw attack cooldown ────────────────────────────────────
     if (kc.clawCooldown > 0) kc.clawCooldown -= dt;
 
-    // ── Claw-swipe animation phase ──────────────────────────────
     if (kc.clawActive) {
         kc.clawTimer -= dt;
         kc.frameRow   = KC_ROW_CLAW;
@@ -433,16 +552,21 @@ function updateKingCrab(game, dt) {
         }
     }
 
-    // ── Frame animation (8 fps) ─────────────────────────────────
     kc.frameTimer += dt;
     if (kc.frameTimer >= 0.125) {
         kc.frameTimer = 0;
         kc.frameCol   = (kc.frameCol + 1) % KC_COLS;
     }
 
-    // ── Movement — slow pursuit of Fin ──────────────────────────
-    const dx   = game.fishX - kc.x;
-    const dy   = game.fishY - kc.y;
+    // ── Movement — loses target when Fin hides in plants ────────
+    if (!_finIsHidden(game)) {
+        kc._lastKnownX = game.fishX;
+        kc._lastKnownY = game.fishY;
+    }
+    const kcTX = kc._lastKnownX ?? game.fishX;
+    const kcTY = kc._lastKnownY ?? game.fishY;
+    const dx   = kcTX - kc.x;
+    const dy   = kcTY - kc.y;
     const dist = Math.hypot(dx, dy);
 
     if (!kc.clawActive) {
@@ -452,30 +576,26 @@ function updateKingCrab(game, dt) {
         kc.vy = Math.sin(ang) * speed;
         kc.facingLeft = kc.vx < 0;
 
-        // Trigger claw swipe when close enough and cooldown expired
         if (dist < 180 && kc.clawCooldown <= 0) {
             kc.clawActive   = true;
-            kc.clawTimer    = 0.7;           // animation duration
+            kc.clawTimer    = 0.7;
             kc.clawCooldown = KING_CRAB_COOLDOWN;
             kc.frameRow     = KC_ROW_CLAW;
             kc.frameCol     = 0;
         }
     } else {
-        // Slow down during claw swipe
         kc.vx *= 0.85;
         kc.vy *= 0.85;
     }
 
     kc.x += kc.vx * dt;
     kc.y += kc.vy * dt;
-
-    // World bounds clamp
     kc.x = Math.max(120, Math.min(W - 120, kc.x));
     kc.y = Math.max(80,  Math.min(H - 80,  kc.y));
 }
 
 // ────────────────────────────────────────────────────────────────
-//  Clam respawn — after pearl is collected, clam reseals after CLAM_RESPAWN_TIME
+//  Clam respawn
 // ────────────────────────────────────────────────────────────────
 
 function updateClams(game, dt) {
@@ -485,9 +605,8 @@ function updateClams(game, dt) {
         if (clam.pearlCollected) {
             clam.respawnTimer = (clam.respawnTimer || 0) + dt;
             if (clam.respawnTimer >= CLAM_RESPAWN_TIME) {
-                // Move clam to a new random position along the sea floor
-                clam.x            = W * 0.12 + Math.random() * W * 0.76;
-                clam.y            = H * 0.88 + Math.random() * H * 0.09;
+                clam.x              = W * 0.12 + Math.random() * W * 0.76;
+                clam.y              = H * 0.88 + Math.random() * H * 0.09;
                 clam.pearlCollected = false;
                 clam.hasPearl       = true;
                 clam.openAnim       = 0;
@@ -498,224 +617,73 @@ function updateClams(game, dt) {
     }
 }
 
-//  seaweed, fish shadow).  Called once per stage from
-//  spawnStageEntities.
+// ────────────────────────────────────────────────────────────────
+//  Decorations — spawned once per stage from spawnStageEntities.
 // ────────────────────────────────────────────────────────────────
 
 function spawnDecorations(game) {
     const W = game.world.w;
     const H = game.world.h;
 
-    // FLOOR_Y is where the base of floor decorations should sit.
-    // 96–97 % puts the bottom of each sprite right on the seabed.
-    const FLOOR_Y      = H * 0.96;   // ← changed from 0.96
-    const FLOOR_Y_DEEP = H * 0.94;   // ← changed from 0.97
+    // FLOOR_Y    — boat and surface decorations
+    // FLOOR_Y_DEEP — coral/rock bases right at/just below the visual floor
+    const FLOOR_Y      = H * 0.96;
+    const FLOOR_Y_DEEP = H * 1.01;   // FIX: was 1.01 — putting items below world, invisible
 
- game.decoItems = [
-    // ── Sunken boat — base sits on the seafloor ───────────
-    {
-        type:  'boat',
-        x:     W * 0.18 + Math.random() * W * 0.64,
-        y:     FLOOR_Y +80+ Math.random() * H * 0.01,
-        scale: 0.55,
-    },
+    const pathIndex   = Math.floor((game.stage - 1) / 3);
+    const stageInPath = (game.stage - 1) % 3;
+    const rockImgIndex = pathIndex <= 1 ? pathIndex * 3 + stageInPath : -1;
 
-    // ── Coral clusters — base on seabed ──────────────────
-    {
-        type:  'coral1',
-        x:     W * 0.10 + Math.random() * W * 0.20,   // FIX: was * 0. (zero), now * 0.20
-        y:     FLOOR_Y_DEEP + 80,
-        scale: 0.45,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.45 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.65 + Math.random() * W * 0.22,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.35 + Math.random() * W * 0.35,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral1',
-        x:     W * 0.55 + Math.random() * W * 0.25,   // FIX: was 0.35 — capped to 0.25 so max is W*0.80
-        y:     FLOOR_Y_DEEP + 75 ,
-        scale: 0.40,
-    },
-    {
-        type:  'coral3',
-        x:     W * 0.30 + Math.random() * W * 0.20,
-        y:     FLOOR_Y_DEEP + 75,
-        scale: 0.38,
-    },
-    {
-        type:  'coral3',
-        x:     W * 0.72 + Math.random() * W * 0.15,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-    {
-       type:  'coral3',
-        x:     W * 0.80 + Math.random() * W * 0.10,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-    {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-     {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-     {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-     {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-     {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
-     {
-       type:  'coral3',
-        x:     W * 0.42 + Math.random() * W * 0.05,   // FIX: was 0.20 — capped to 0.15 so max is W*0.87
-        y:     FLOOR_Y_DEEP +75,
-        scale: 0.35,
-    },
+    // ── Load all decoration images once (guard prevents re-creation each stage) ──
+    const loadOnce = (prop, src) => {
+        if (!game[prop] || game[prop]._src !== src) {
+            const img = new Image();
+            img.src  = src;
+            img._src = src;
+            game[prop] = img;
+        }
+    };
+    loadOnce('decoSeagrass',   'backgrounds_new/seagras.png');
+    loadOnce('decoSeaweed',    'backgrounds_new/seaweed_sprite.png');
+    loadOnce('decoCoral3',     'backgrounds_new/coral3.png');
+    loadOnce('decoCoral1',     'backgrounds_new/coral1.png');
+    loadOnce('decoBoat',       'backgrounds_new/boat.png');
+    loadOnce('decoFishShadow', 'fishshadow.png');
+    loadOnce('decoTallRock',   'backgrounds_new/tall_rock.png');
+    loadOnce('decoHugeRock',   'backgrounds_new/huge_rock.png');
+    loadOnce('decoStone',      'backgrounds_new/stone.png');
+    loadOnce('decoStone1',     'backgrounds_new/stone1.png');
+    loadOnce('decoStone2',     'backgrounds_new/stone2.png');
 
-    // ── Seagrass patches — base on seabed ────────────────
-    {
-        type:  'seagrass',
-        x:     W * 0.12 + Math.random() * W * 0.18,
-        y:     FLOOR_Y_DEEP +70,
-        scale: 0.32,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.40 + Math.random() * W * 0.22,
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.28,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-    {
-        type:  'seagrass',
-        x:     W * 0.65 + Math.random() * W * 0.18,   // FIX: was 0.22 — capped to 0.18 so max is W*0.83
-        y:     FLOOR_Y_DEEP + 70,
-        scale: 0.30,
-    },
-        // ── Fish shadow — drifts mid-water (centred, not floor) ─
+    game.decoItems = [
+        // ── Rock seabed backdrop ────────────────────────────────
+        ...(rockImgIndex >= 0 ? [{
+            type:      'rock',
+            x:         W / 2,
+            y:         H * 1,
+            rockIndex: rockImgIndex,
+        }] : []),
+
+        // ── Sunken boat ─────────────────────────────────────────
+        {
+            type:  'boat',
+            x:     W * 0.18 + Math.random() * W * 0.64,
+            y:     FLOOR_Y + 1.01,
+            scale: 3,
+        },
+
+        // ── Coral clusters (coral1) ─────────────────────────────
+        { type: 'coral1', x: W * 0.10 + Math.random() * W * 0.20, y: FLOOR_Y_DEEP, scale: 0.45 },
+        { type: 'coral1', x: W * 0.45 + Math.random() * W * 0.25, y: FLOOR_Y_DEEP, scale: 0.40 },
+        { type: 'coral1', x: W * 0.65 + Math.random() * W * 0.22, y: FLOOR_Y_DEEP, scale: 0.40 },
+        { type: 'coral1', x: W * 0.35 + Math.random() * W * 0.35, y: FLOOR_Y_DEEP, scale: 0.40 },
+        { type: 'coral1', x: W * 0.55 + Math.random() * W * 0.25, y: FLOOR_Y_DEEP, scale: 0.40 },
+        { type: 'coral1', x: W * 0.20 + Math.random() * W * 0.15, y: FLOOR_Y_DEEP, scale: 0.38 },
+        { type: 'coral1', x: W * 0.75 + Math.random() * W * 0.15, y: FLOOR_Y_DEEP, scale: 0.38 },
+
+        // coral3, seagrass, seaweed — drawn by drawGameSeaFloor() drawPlant() system
+
+        // ── Fish shadow — drifts mid-water ──────────────────────
         {
             type:  'fishshadow',
             x:     W * 0.20 + Math.random() * W * 0.60,
@@ -723,21 +691,46 @@ function spawnDecorations(game) {
             scale: 1.10,
             vx:    (Math.random() > 0.5 ? 1 : -1) * (25 + Math.random() * 20),
         },
-
     ];
 
-    // ── Seaweed clumps — base on seabed, spread across the floor ─
-    const seaweedCount = 1 + Math.floor(Math.random() * 10); // 1–3 clumps
-    const zoneW = W / seaweedCount;
-    for (let i = 0; i < seaweedCount; i++) {
-        const zoneStart = zoneW * i;
-        const safeStart = zoneStart + zoneW * 0.10;
-        const safeRange = zoneW * 0.80;
-        game.decoItems.push({
-            type:  'seaweed',
-            x:     safeStart + Math.random() * safeRange,
-            y:     FLOOR_Y_DEEP +100,          // base on seabed — renderer draws upward from here
-            scale: 0.55 + Math.random() * 0.25,
-        });
+    // ── Path 1 floor rock scatter ─────────────────────────────
+    if (pathIndex === 0) {
+        const FLOOR = H * 0.97;   // FIX: was H*1 — put rocks at world bottom, now at visible floor
+
+        // huge_rock: 2-3 spread across floor
+        const hugeCount = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < hugeCount; i++) {
+            game.decoItems.push({
+                type:  'huge_rock',
+                x:     W * (0.05 + i * (0.88 / hugeCount)) + Math.random() * W * 0.14,
+                y:     FLOOR_Y_DEEP,
+                scale: 0.45 + Math.random() * 0.20,
+            });
+        }
+
+        // small stones: 4-7 randomly scattered
+        const stoneTypes = ['stone', 'stone1', 'stone2'];
+        const stoneCount = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < stoneCount; i++) {
+            game.decoItems.push({
+                type:  stoneTypes[Math.floor(Math.random() * stoneTypes.length)],
+                x:     Math.random() * W * 0.92 + W * 0.04,
+                y:     FLOOR_Y_DEEP + 25,
+                scale: 0.22 + Math.random() * 0.18,
+            });
+        }
+
+        // tall_rock: only on stage 3 of path 1 (stageInPath === 2)
+        if (stageInPath === 2) {
+            const tallCount = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < tallCount; i++) {
+                game.decoItems.push({
+                    type:  'tall_rock',
+                    x:     W * (0.08 + i * (0.84 / tallCount)) + Math.random() * W * 0.08,
+                    y:     FLOOR_Y_DEEP,
+                    scale: 0.55 + Math.random() * 0.30,
+                });
+            }
+        }
     }
 }
